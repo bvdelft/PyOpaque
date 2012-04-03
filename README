@@ -1,1 +1,7 @@
-That's a start
+Just a first instruction:
+
+- cd src
+- python setupcOpaque.py build
+- cp build/lib*/setupcOpaque.so ../examples
+- cd ../examples
+- ipython account.py
