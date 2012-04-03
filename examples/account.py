@@ -1,4 +1,4 @@
-import priv
+import cOpaque
 
 class account():
      def __init__(self,owner="bart",balance=0):
@@ -14,16 +14,16 @@ class account():
           self.history.append(('deposit',amount))
           self.balance+=amount
 
-priv.registerTargetClass(account)
+cOpaque.registerTargetClass(account)
 
-priv.exportGetAttr(account,"balance")
-priv.exportGetAttr(account,"withdraw")
-priv.exportGetAttr(account,"deposit")
-priv.exportGetAttr(account,"owner")
-#priv.exportGetAttr(account,"history")
+cOpaque.exportGetAttr(account,"balance")
+cOpaque.exportGetAttr(account,"withdraw")
+cOpaque.exportGetAttr(account,"deposit")
+cOpaque.exportGetAttr(account,"owner")
+#cOpaque.exportGetAttr(account,"history")
 
-priv.finalizeTargetClass(account,"account")
+cOpaque.finalizeTargetClass(account,"account")
 
-account = priv.builder(account).build
+account = cOpaque.builder(account).build
 
-del priv
+del cOpaque

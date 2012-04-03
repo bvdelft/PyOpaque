@@ -354,7 +354,7 @@ static PyObject * finalizeTargetClass(PyObject *dummy, PyObject *args)
 }
 
 // Exported methods
-static PyMethodDef PrivMethods[] = 
+static PyMethodDef cOpaqueMethods[] = 
 {
   {"registerTargetClass",registerTargetClass,METH_VARARGS,"Register a new class to encapsulate"} ,
   {"builder",encapBuilder_init,METH_VARARGS,"The builder"},
@@ -364,9 +364,9 @@ static PyMethodDef PrivMethods[] =
 } ;
 
 // Initialize module
-PyMODINIT_FUNC initpriv(void)
+PyMODINIT_FUNC initcOpaque(void)
 {
   encapType.ob_type = &PyType_Type;
   encapBuilderType.ob_type = &PyType_Type;
-  (void) Py_InitModule("priv",PrivMethods);
+  (void) Py_InitModule("cOpaque",cOpaqueMethods);
 }
