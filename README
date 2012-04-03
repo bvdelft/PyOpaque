@@ -1,7 +1,7 @@
 Just a first instruction:
 
 - cd src
-- python setupcOpaque.py build
-- cp build/lib*/setupcOpaque.so ../examples
+- make
+- cp cOpaquemodule.so ../examples
 - cd ../examples
 - ipython account.py
