@@ -4,4 +4,6 @@ Just a first instruction:
 - make
 - cp cOpaquemodule.so ../examples
 - cd ../examples
-- ipython account.py
+- ipython nest.py
+
+(read comments in examples/nest.py and examples/simple.py
