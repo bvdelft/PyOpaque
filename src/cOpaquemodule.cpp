@@ -30,9 +30,17 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 	
-	// Find the attribute's policy
-	map<char*,PyObject*> attributes = eobject->target->attributes;
+	// Detect if added as new attribute
+	map<char*,PyObject*> attributes = eobject->setAttributes;
 	map<char*,PyObject*>::iterator it = attributes.find(attr);
+	if (it == attributes.end())
+	{
+		return it->second;
+	}
+	
+	// Find the attribute's policy
+	attributes = eobject->target->attributes;
+	it = attributes.find(attr);
 	if (it == attributes.end())
 	{
 		(void) PyErr_Format(PyExc_AttributeError, 
@@ -76,6 +84,36 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 }
 
 /**
+* Allows for adding new attributes to encapsulated objects, provided that this
+* attribute is not protected by a policy.
+* Note: the new attribute is added on the EncapsulatedObject level, not the
+* encapsulated target, so no risk for overwriting attributes of the protected
+* object that had no policy specified.
+**/
+static int EOSetAttr(PyObject * _eobject, char * attr, PyObject *v)
+{
+	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
+	
+	// Find the attribute's policy
+	map<char*,PyObject*> attributes = eobject->target->attributes;
+	map<char*,PyObject*>::iterator it = attributes.find(attr);
+	if (it != attributes.end())
+	{
+		(void) PyErr_Format(PyExc_AttributeError, 
+                "'\%s' object has attribute '\%s' protected by a policy",
+                eobject->target->name, attr);
+		return -1;
+	}
+	
+	// TODO continue here
+	// SegFault: setAttributes is NULL
+	//eobject->setAttributes.insert(pair<char*,PyObject*>(attr,v));
+	
+	return 0;
+	
+}
+
+/**
 * Generates a new encapsulated object type with the provided name, such that the
 * correct name appears in message, __name__ etc.
 **/
@@ -95,6 +133,7 @@ PyTypeObject* makeEncapObjectType(char * name)
 
 	// The __getattr__ function (= applying the policies)    
 	encapObjectType->tp_getattr = EOGetAttr;
+	encapObjectType->tp_setattr = EOSetAttr;
 
 	// Default stuff
 	encapObjectType->tp_basicsize = sizeof(EncapsulatedObject);
@@ -147,6 +186,8 @@ static PyObject * build(PyObject* self, PyObject* args) {
 	// Create the object to be encapsulated
 	PyObject* theObject; 
 	theObject = PyObject_CallObject(ob->target->target, args); 
+	if (theObject == NULL)
+		return NULL;
 	Py_XINCREF(theObject);
 
 	// Create an encapsulating object
