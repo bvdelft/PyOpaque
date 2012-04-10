@@ -4,7 +4,6 @@ typedef struct
 {
 	PyObject_HEAD
 	PyObject* objPointer;
-	map<char*,PyObject*> setAttributes;
 	TargetClass* target;
 } EncapsulatedObject;
 

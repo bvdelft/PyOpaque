@@ -30,17 +30,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 	
-	// Detect if added as new attribute
-	map<char*,PyObject*> attributes = eobject->setAttributes;
-	map<char*,PyObject*>::iterator it = attributes.find(attr);
-	if (it == attributes.end())
-	{
-		return it->second;
-	}
-	
 	// Find the attribute's policy
-	attributes = eobject->target->attributes;
-	it = attributes.find(attr);
+	map<char*,PyObject*> attributes = eobject->target->attributes;
+	map<char*,PyObject*>::iterator it = attributes.find(attr);
 	if (it == attributes.end())
 	{
 		(void) PyErr_Format(PyExc_AttributeError, 
@@ -84,36 +76,6 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 }
 
 /**
-* Allows for adding new attributes to encapsulated objects, provided that this
-* attribute is not protected by a policy.
-* Note: the new attribute is added on the EncapsulatedObject level, not the
-* encapsulated target, so no risk for overwriting attributes of the protected
-* object that had no policy specified.
-**/
-static int EOSetAttr(PyObject * _eobject, char * attr, PyObject *v)
-{
-	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
-	
-	// Find the attribute's policy
-	map<char*,PyObject*> attributes = eobject->target->attributes;
-	map<char*,PyObject*>::iterator it = attributes.find(attr);
-	if (it != attributes.end())
-	{
-		(void) PyErr_Format(PyExc_AttributeError, 
-                "'\%s' object has attribute '\%s' protected by a policy",
-                eobject->target->name, attr);
-		return -1;
-	}
-	
-	// TODO continue here
-	// SegFault: setAttributes is NULL
-	//eobject->setAttributes.insert(pair<char*,PyObject*>(attr,v));
-	
-	return 0;
-	
-}
-
-/**
 * Generates a new encapsulated object type with the provided name, such that the
 * correct name appears in message, __name__ etc.
 **/
@@ -129,11 +91,8 @@ PyTypeObject* makeEncapObjectType(char * name)
 	// Set the type-instance specific name
 	encapObjectType->tp_name = const_cast<char*>(name);
 
-	// TODO could set type-instance specific attributes here?
-
 	// The __getattr__ function (= applying the policies)    
 	encapObjectType->tp_getattr = EOGetAttr;
-	encapObjectType->tp_setattr = EOSetAttr;
 
 	// Default stuff
 	encapObjectType->tp_basicsize = sizeof(EncapsulatedObject);
@@ -193,7 +152,8 @@ static PyObject * build(PyObject* self, PyObject* args) {
 	// Create an encapsulating object
 	EncapsulatedObject * encap =
 		(EncapsulatedObject *) PyObject_New(EncapsulatedObject, 
-											ob->target->encapType);
+										ob->target->encapType);
+	
 	encap->target = ob->target;
 	Py_XINCREF(ob->target->target);
 
@@ -338,6 +298,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 			"Opaque instance for %s can only be created once.", name);
 		return NULL;
 	}
+		
 	knownTargets.insert(target);
 
 	int numLines = PyList_Size(listObj);
@@ -376,6 +337,8 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 				"Attribute %s is given more than one policy.",attr);
 			return NULL;
 		}
+		
+		Py_XINCREF(callable);
 		
 		parsedAttrs.insert(pair<char*,PyObject*>(attr,callable));
 	}
