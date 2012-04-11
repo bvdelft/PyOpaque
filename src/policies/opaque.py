@@ -1,15 +1,20 @@
-def applyPolicy(cfgFileName,classToEncapsulate):
-    #probably this is not needed. We need to enhace the directory structure
-    import sys
-    sys.path.insert(0, '../../src/')
-    import cOpaque
-    #---------------------------
-    import ConfigParser
+import cOpaque
 
-    config = ConfigParser.RawConfigParser()
-    config.read(cfgFileName)
-    cOpaque.registerTargetClass(classToEncapsulate)
-    for attribute in config.options(classToEncapsulate.__name__):
-        cOpaque.exportGetAttr(classToEncapsulate,attribute)
-    cOpaque.finalizeTargetClass(classToEncapsulate,classToEncapsulate.__name__)
-    return cOpaque.builder(classToEncapsulate).build
+def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
+    import ConfigParser
+    cOpaque.enableDebug()
+    config = ConfigParser.RawConfigParser(allow_no_value=True)
+
+    if type(cfgFileName)==str: config.read(cfgFileName)
+    else: config.readfp(cfgFileName)
+
+    toPrivate=[]
+    toPublic =[]
+    for (attribute,property) in config.items(classToEncapsulate.__name__):
+        if property == None:
+            if attribute == 'default-private': default=False
+            if attribute == 'default-public' : default=True
+        if property == 'private': toPrivate.append(attribute)
+        if property == 'public' :  toPublic.append(attribute)
+    classToEncapsulate=cOpaque.makeOpaque(classToEncapsulate,toPublic,toPrivate,default )
+    return classToEncapsulate
