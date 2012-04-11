@@ -100,9 +100,10 @@ PyTypeObject* makeEncapObjectType(char * name)
 	memcpy(encapObjectType, &dummy, sizeof(PyObject));
 
 	// Set the type-instance specific name
-	char _name[strlen(name)];
-	strcpy (_name,name);
-	encapObjectType->tp_name = const_cast<char*>(_name);
+	debug("Name: ");
+	debug(name);
+	debug("\n");
+	encapObjectType->tp_name = const_cast<char*>(name);
 
 	// The __getattr__ function (= applying the policies)    
 	encapObjectType->tp_getattr = EOGetAttr;
@@ -266,7 +267,14 @@ static char * getObjectFullName(PyObject * obj) {
 		return NULL;
 	char * module = PyString_AsString(moduleattr);
 	
-	return strcat(strcat(module,"."),name);
+	char * res = (char*)malloc(strlen(name) + strlen(module) + 1);
+	strcpy(res, module);
+	strcat(res, ".");
+	strcat(res, name);
+	debug("Derived name: ");
+	debug(res);
+	debug("\n");
+	return res;
 }
 
 /**
@@ -318,12 +326,14 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 		return NULL;
 	}
 	
+	
 	if (knownTargets.find(target) != knownTargets.end())
 	{
 		(void)PyErr_Format(PyExc_RuntimeError, 
 			"Opaque instance for %s can only be created once.", name);
 		return NULL;
 	}
+		
 		
 	knownTargets.insert(target);
 	Py_XINCREF(target);
