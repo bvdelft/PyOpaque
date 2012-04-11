@@ -51,12 +51,13 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	}
 	
 	// default:
-	if (DEBUG)
+	if (DEBUG) {
 		printf("DEBUG: Default public is ");
 	if (eobject->target->defaultPublic)
 		printf("true.\n");
 	else
 		printf("false.\n");
+	}
 	
 	if (eobject->target->defaultPublic) {
 	
