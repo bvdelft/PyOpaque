@@ -56,8 +56,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	int isTrue = PyObject_IsTrue(result);
 	if (isTrue == 1) // is true, allowed to get attribute
 	{
+		// Py_XINCREF(eobject->objPointer);
 		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
-		Py_XINCREF(res);
+		// Py_XINCREF(res);
 		return res;
 	}
 	if (isTrue == 0)  // is not true, not allowed to get attribute
@@ -117,6 +118,7 @@ PyTypeObject* makeEncapObjectType(char * name)
 TargetClass::TargetClass(PyObject * _target, char * _name,
                          map<char*,PyObject*> _attributes) 
 {
+	Py_XINCREF(_target);
 	target = _target;
 	name = _name;
 	attributes = _attributes;
@@ -147,7 +149,7 @@ static PyObject * build(PyObject* self, PyObject* args) {
 	theObject = PyObject_CallObject(ob->target->target, args); 
 	if (theObject == NULL)
 		return NULL;
-	Py_XINCREF(theObject);
+	
 
 	// Create an encapsulating object
 	EncapsulatedObject * encap =
@@ -155,10 +157,11 @@ static PyObject * build(PyObject* self, PyObject* args) {
 										ob->target->encapType);
 	
 	encap->target = ob->target;
-	Py_XINCREF(ob->target->target);
+	// Py_XINCREF(ob->target->target);
 
 	// Store the object in the encapsulating one
 	encap->objPointer = theObject;
+	Py_XINCREF(theObject);
 
 	// Return the result
 	PyObject * res = (PyObject*) encap;
@@ -220,7 +223,7 @@ static PyObject* encapBuilder_init(TargetClass* target)
 	EObjectBuilder* encapB;
 	encapB = PyObject_NEW(EObjectBuilder, EObjectBuilderType);
 	encapB->target = target;
-	Py_XINCREF(target->target);
+	// Py_XINCREF(target->target);
 	return (PyObject*) encapB;
 }
 
@@ -268,7 +271,7 @@ static set<PyObject*> knownTargets;
 static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 {
 	
-	PyObject *target;
+	PyObject * target;
 	PyObject * listObj;
 
 	// Checks on the provided arguments
@@ -300,6 +303,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	}
 		
 	knownTargets.insert(target);
+	Py_XINCREF(target);
 
 	int numLines = PyList_Size(listObj);
 
@@ -349,6 +353,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	TargetClass * targetClass = new TargetClass(target, name, parsedAttrs);
 	PyObject * builder = encapBuilder_init(targetClass);
 	
+	Py_XINCREF(builder);
 	PyObject * res =  PyObject_GetAttrString(builder,"build");
 	Py_XINCREF(res);
 	
