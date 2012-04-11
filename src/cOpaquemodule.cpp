@@ -4,7 +4,7 @@ using namespace std;
 
 struct strPtrLess {
    bool operator( )(const char* p1,const char* p2) {
-      return strcmp(p1,p2);
+      return strcmp(p1,p2) < 0;
    }
 };
 
