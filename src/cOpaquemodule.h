@@ -11,11 +11,11 @@ struct TargetClass
 {
 	PyObject* target;
 	char * name;
-	set<char*> publicAttributes;
-	set<char*> privateAttributes;
+	set<char*, strPtrLess> publicAttributes;
+	set<char*, strPtrLess> privateAttributes;
 	bool defaultPublic;
 	PyTypeObject * encapType;
-	TargetClass(PyObject *, char *, set<char*>, set<char*>, bool);
+	TargetClass(PyObject *, char *, set<char*, strPtrLess>, set<char*, strPtrLess>, bool);
 };
 
 typedef struct 

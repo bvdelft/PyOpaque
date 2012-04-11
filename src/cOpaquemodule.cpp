@@ -1,6 +1,13 @@
 #include <Python.h>
 #include <set>
 using namespace std;
+
+struct strPtrLess {
+   bool operator( )(const char* p1,const char* p2) {
+      return strcmp(p1,p2);
+   }
+};
+
 #include "cOpaquemodule.h"
 
 bool DEBUG = false;
@@ -9,6 +16,8 @@ static void debug(const char * text) {
 	if (DEBUG)
 		printf("%s",text);
 }
+
+
 
 /*----------------------------------------------------------------------------*/
 ////// EncapsulatedObject //////////////////////////////////////////////////////
@@ -31,9 +40,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 	
 
-	set<char*> publicAttributes = eobject->target->publicAttributes;
+	set<char*, strPtrLess> publicAttributes = eobject->target->publicAttributes;
 
-	debug("DEBUG: Checking for public attributes");
+	debug("DEBUG: Checking for public attributes\n");
 
 	if (publicAttributes.find(attr) != publicAttributes.end()) 
 	{ // Public attribute, flow allowed:
@@ -41,9 +50,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 		return res;
 	}
 	
-	set<char*> privateAttributes = eobject->target->privateAttributes;
+	set<char*, strPtrLess> privateAttributes = eobject->target->privateAttributes;
 	
-	debug("DEBUG: Checking for private attributes");
+	debug("DEBUG: Checking for private attributes\n");
 
 	if (privateAttributes.find(attr) != privateAttributes.end()) 
 	{ // Private attribute, flow not allowed:
@@ -119,8 +128,8 @@ PyTypeObject* makeEncapObjectType(char * name)
 * Constructor. Generates a new encapsulated object type for this target / name.
 **/
 TargetClass::TargetClass(PyObject * _target, char * _name,
-                         set<char*> _publicAttributes, 
-                         set<char*> _privateAttributes,
+                         set<char*, strPtrLess> _publicAttributes, 
+                         set<char*, strPtrLess> _privateAttributes,
                          bool _defaultPublic) 
 {
 	Py_XINCREF(_target);
@@ -334,7 +343,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	}
 
 	int i;
-	set<char*> publicAttributes;
+	set<char*, strPtrLess> publicAttributes;
 	for (i = 0; i < numLines; i++)
 	{
 		PyObject* item;
@@ -377,7 +386,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 		return NULL;
 	}
 
-	set<char*> privateAttributes;
+	set<char*, strPtrLess> privateAttributes;
 	for (i = 0; i < numLines; i++)
 	{
 		PyObject* item;
