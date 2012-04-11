@@ -1,8 +1,9 @@
 #include <Python.h>
 #include <set>
-#include <map>
 using namespace std;
 #include "cOpaquemodule.h"
+
+bool DEBUG = false;
 
 /*----------------------------------------------------------------------------*/
 ////// EncapsulatedObject //////////////////////////////////////////////////////
@@ -30,49 +31,46 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 	
-	// Find the attribute's policy
-	map<char*,PyObject*> attributes = eobject->target->attributes;
-	map<char*,PyObject*>::iterator it = attributes.find(attr);
-	if (it == attributes.end())
-	{
-		(void) PyErr_Format(PyExc_AttributeError, 
-                "'\%s' object has no attribute '\%s'",
-                eobject->target->name, attr);
-		return NULL;
-	}
-	
-	// Call the attribute's policy
-	PyObject* policy = it->second;
-	PyObject* result = PyObject_CallObject(policy, NULL);
-	if (result == NULL)
-	{
-		(void) PyErr_Format(PyExc_RuntimeError, 
-                "Failed in calling policy for attribute '%s' of '\%s' object",
-                attr, eobject->target->name);
-		return NULL;
-	}
-	
-	// Apply the policy's result
-	int isTrue = PyObject_IsTrue(result);
-	if (isTrue == 1) // is true, allowed to get attribute
-	{
-		// Py_XINCREF(eobject->objPointer);
+
+	set<char*> publicAttributes = eobject->target->publicAttributes;
+
+	if (publicAttributes.find(attr) != publicAttributes.end()) 
+	{ // Public attribute, flow allowed:
 		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
-		// Py_XINCREF(res);
 		return res;
 	}
-	if (isTrue == 0)  // is not true, not allowed to get attribute
-	{
+	
+	set<char*> privateAttributes = eobject->target->privateAttributes;
+
+	if (privateAttributes.find(attr) != privateAttributes.end()) 
+	{ // Private attribute, flow not allowed:
 		(void) PyErr_Format(PyExc_RuntimeError, 
                 "The policy of attribute '%s' of '\%s' object disallows access",
                 attr, eobject->target->name);
 		return NULL;
 	}
-	// error
-	(void) PyErr_Format(PyExc_RuntimeError, 
-            "Failure in executing policy for '%s' of '\%s' object",
-            attr, eobject->target->name);
-	return NULL;
+	
+	// default:
+	if (DEBUG)
+		printf("DEBUG: Default public is ");
+	if (eobject->target->defaultPublic)
+		printf("true.\n");
+	else
+		printf("false.\n");
+	
+	if (eobject->target->defaultPublic) {
+	
+		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
+		return res;
+	
+	} else {
+	
+		(void) PyErr_Format(PyExc_RuntimeError, 
+                "The policy of attribute '%s' of '\%s' object disallows access",
+                attr, eobject->target->name);
+		return NULL;
+		
+	}
 	
 }
 
@@ -116,12 +114,16 @@ PyTypeObject* makeEncapObjectType(char * name)
 * Constructor. Generates a new encapsulated object type for this target / name.
 **/
 TargetClass::TargetClass(PyObject * _target, char * _name,
-                         map<char*,PyObject*> _attributes) 
+                         set<char*> _publicAttributes, 
+                         set<char*> _privateAttributes,
+                         bool _defaultPublic) 
 {
 	Py_XINCREF(_target);
 	target = _target;
 	name = _name;
-	attributes = _attributes;
+	publicAttributes = _publicAttributes;
+	privateAttributes = _privateAttributes;
+	defaultPublic = _defaultPublic;
 	encapType = makeEncapObjectType(_name);
 }
 
@@ -272,15 +274,23 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 {
 	
 	PyObject * target;
-	PyObject * listObj;
+	PyObject * publicAttrs;
+	PyObject * privateAttrs;
+	PyObject * defaultPolicy;
 
 	// Checks on the provided arguments
 
-	if (! PyArg_ParseTuple( args, "OO!", &target, &PyList_Type, &listObj)) 
+	if (! PyArg_ParseTuple( args, "OO!O!O", &target, &PyList_Type, &publicAttrs,
+                                    &PyList_Type, &privateAttrs, &defaultPolicy)) 
 		return NULL;
-		
-	// TODO: currently rejects:		class A(object): 
-	if (!PyClass_Check(target))
+	
+	////
+	// The target class
+	////
+	if (DEBUG)
+		printf("DEBUG: Checking target class\n");
+	
+	if (!PyClass_Check(target)) // TODO: currently rejects:	class A(object):
 	{
 		(void)PyErr_Format(PyExc_RuntimeError, 
 			"First argument should be a class");
@@ -304,53 +314,113 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 		
 	knownTargets.insert(target);
 	Py_XINCREF(target);
-
-	int numLines = PyList_Size(listObj);
+	
+	
+	////
+	// Public attributes
+	////
+	if (DEBUG)
+		printf("DEBUG: Checking public attributes\n");
+	
+	int numLines = PyList_Size(publicAttrs);
 
 	if (numLines < 0)
 	{
-		(void)PyErr_Format(PyExc_RuntimeError, "Argument is not a list");
+		(void)PyErr_Format(PyExc_RuntimeError, "2nd argument is not a list");
 		return NULL;
 	}
 
 	int i;
-	map<char*,PyObject*> parsedAttrs;
+	set<char*> publicAttributes;
+	for (i = 0; i < numLines; i++)
+	{
+		PyObject* item;
+
+		if (! (item = PyList_GetItem(publicAttrs, i)))
+			return NULL;
+			
+		if (!PyString_Check(item)) {
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Provided attribute not a string");
+			return NULL;
+		}
+			
+		char * attr = PyString_AsString(item);
+		
+		if (DEBUG)
+			printf("DEBUG: Public attribute: %s\n", attr);
+			
+		if (publicAttributes.find(attr) != publicAttributes.end())
+		{
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Attribute %s appears more than once.",attr);
+			return NULL;
+		}
+		
+		publicAttributes.insert(attr);
+	}
+	
+	////
+	// Private attributes
+	////
+	if (DEBUG)
+		printf("DEBUG: Checking private attributes\n");
+	
+	numLines = PyList_Size(privateAttrs);
+
+	if (numLines < 0)
+	{
+		(void)PyErr_Format(PyExc_RuntimeError, "3th argument is not a list");
+		return NULL;
+	}
+
+	set<char*> privateAttributes;
 	for (i = 0; i < numLines; i++)
 	{
 		PyObject* item;
 		
-		if (! (item = PyList_GetItem(listObj, i)))
+		if (! (item = PyList_GetItem(privateAttrs, i)))
 			return NULL;
 			
-		char * attr;
-		PyObject * callable;
+		if (!PyString_Check(item)) {
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Provided attribute not a string");
+			return NULL;
+		}
+			
+		char * attr = PyString_AsString(item);
 		
-		if (! PyArg_ParseTuple(item, "sO", &attr, &callable)) 
-			return NULL;
+		if (DEBUG)
+			printf("DEBUG: Private attribute: %s\n", attr);
 			
-		if (! PyCallable_Check(callable))
+		if (publicAttributes.find(attr) != publicAttributes.end() ||
+		    privateAttributes.find(attr) != privateAttributes.end())
 		{
 			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Not a callable element for attribute %s", attr);
+				"Attribute %s appears more than once.",attr);
 			return NULL;
 		}
 		
-		if (parsedAttrs.find(attr) != parsedAttrs.end())
-		{
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Attribute %s is given more than one policy.",attr);
-			return NULL;
-		}
-		
-		Py_XINCREF(callable);
-		
-		parsedAttrs.insert(pair<char*,PyObject*>(attr,callable));
+		privateAttributes.insert(attr);
 	}
 	
-	// All checks passed, mapping of attributes to policy functions created.
-	// Construct builder function and return
+	////
+	// Default policy
+	////
+	if (DEBUG) 
+		printf("DEBUG: Checking setting default policy to");
+	bool defPol = PyObject_IsTrue(defaultPolicy) == 1;
+	if (DEBUG) {
+		if (defPol)
+			printf(" true.\n");
+		else
+			printf(" false.\n");
+	}
 	
-	TargetClass * targetClass = new TargetClass(target, name, parsedAttrs);
+	if (DEBUG)
+		printf("DEBUG: Creating target class\n");	
+	TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
+	                   privateAttributes, defPol);
 	PyObject * builder = encapBuilder_init(targetClass);
 	
 	Py_XINCREF(builder);
