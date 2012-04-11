@@ -3,7 +3,7 @@
 using namespace std;
 
 struct strPtrLess {
-   bool operator( )(const char* p1,const char* p2) {
+   bool operator( )(const char* p1,const char* p2) const {
       return strcmp(p1,p2) < 0;
    }
 };
@@ -44,7 +44,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 	debug("DEBUG: Checking for public attributes\n");
 
-	if (publicAttributes.find(attr) != publicAttributes.end()) 
+	if (publicAttributes.count(attr) > 0) 
 	{ // Public attribute, flow allowed:
 		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
 		return res;
@@ -54,7 +54,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 	debug("DEBUG: Checking for private attributes\n");
 
-	if (privateAttributes.find(attr) != privateAttributes.end()) 
+	if (privateAttributes.count(attr) > 0) 
 	{ // Private attribute, flow not allowed:
 		(void) PyErr_Format(PyExc_RuntimeError, 
                 "The policy of attribute '%s' of '\%s' object disallows access",
