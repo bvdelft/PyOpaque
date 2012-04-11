@@ -21,13 +21,7 @@ static void encap_dealloc(PyObject* self)
 }
 
 /**
-* __getattr__ for EncapsulatedObject. Looks in the attribute map if the 
-* requested has an associated policy. If not, the attribute is assumed not to
-* exist. If there is a mapping to a policy, it calls the policy function. If the
-* policy function returns true the __getattr__ of the encapsulated object is
-* called with the same argument. If false it returns the message that the 
-* attribute is not accessible with the current policy. If the policy function
-* yields an error this is reported as a RuntimeError.
+* __getattr__ for EncapsulatedObject. 
 **/
 static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
@@ -90,7 +84,9 @@ PyTypeObject* makeEncapObjectType(char * name)
 	memcpy(encapObjectType, &dummy, sizeof(PyObject));
 
 	// Set the type-instance specific name
-	encapObjectType->tp_name = const_cast<char*>(name);
+	char _name[strlen(name)];
+	strcpy (_name,name);
+	encapObjectType->tp_name = const_cast<char*>(_name);
 
 	// The __getattr__ function (= applying the policies)    
 	encapObjectType->tp_getattr = EOGetAttr;
