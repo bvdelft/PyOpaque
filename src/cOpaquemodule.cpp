@@ -3,8 +3,11 @@
 using namespace std;
 #include "cOpaquemodule.h"
 
+bool DEBUG = false;
+
 static void debug(const char * text) {
-	//printf("%s",text);
+	if (DEBUG)
+		printf("%s",text);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -30,6 +33,8 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 	set<char*> publicAttributes = eobject->target->publicAttributes;
 
+	debug("DEBUG: Checking for public attributes");
+
 	if (publicAttributes.find(attr) != publicAttributes.end()) 
 	{ // Public attribute, flow allowed:
 		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
@@ -37,6 +42,8 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	}
 	
 	set<char*> privateAttributes = eobject->target->privateAttributes;
+	
+	debug("DEBUG: Checking for private attributes");
 
 	if (privateAttributes.find(attr) != privateAttributes.end()) 
 	{ // Private attribute, flow not allowed:
@@ -426,12 +433,29 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 
 }
 
+static PyObject * enableDebug(PyObject *dummy, PyObject *args)
+{
+	DEBUG = true;
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+static PyObject * disableDebug(PyObject *dummy, PyObject *args)
+{
+	DEBUG = false;
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+
 /**
 * Only one method: makeOpaque.
 **/
 static PyMethodDef cOpaqueMethods[] = 
 {
 	{"makeOpaque",makeOpaque,METH_VARARGS,"Make a class opaque using the specified list of attribute/policy combinations. Returns a function that passes its arguments to the construction of an encapsulated object for the provided class. The attributes are accessible as according to the provided policies. Calls look as follows :\n class = cOpaque.makeOpaque(class, [(\"attr1\",pol1), (\"attr2\",pol2), ...])\n where each attribute can occur at most once and each pol1, pol2, ... refers to a function with arity 0 that returns True or False."} ,
+	{"enableDebug",enableDebug,METH_VARARGS,"Enable the debugger"} ,
+	{"disableDebug",disableDebug,METH_VARARGS,"Disable the debugger"} ,
 	{NULL, NULL, 0, NULL} 
 } ;
 
