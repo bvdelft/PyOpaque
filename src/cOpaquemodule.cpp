@@ -3,7 +3,9 @@
 using namespace std;
 #include "cOpaquemodule.h"
 
-bool DEBUG = false;
+static void debug(const char * text) {
+	//printf("%s",text);
+}
 
 /*----------------------------------------------------------------------------*/
 ////// EncapsulatedObject //////////////////////////////////////////////////////
@@ -50,14 +52,13 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 		return NULL;
 	}
 	
-	// default:
-	if (DEBUG) {
-		printf("DEBUG: Default public is ");
+
+	debug("DEBUG: Default public is ");
 	if (eobject->target->defaultPublic)
-		printf("true.\n");
+		debug("true.\n");
 	else
-		printf("false.\n");
-	}
+		debug("false.\n");
+	
 	
 	if (eobject->target->defaultPublic) {
 	
@@ -288,8 +289,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	// The target class
 	////
-	if (DEBUG)
-		printf("DEBUG: Checking target class\n");
+	debug("DEBUG: Checking target class\n");
 	
 	if (!PyClass_Check(target)) // TODO: currently rejects:	class A(object):
 	{
@@ -320,8 +320,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	// Public attributes
 	////
-	if (DEBUG)
-		printf("DEBUG: Checking public attributes\n");
+	debug("DEBUG: Checking public attributes\n");
 	
 	int numLines = PyList_Size(publicAttrs);
 
@@ -348,8 +347,9 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 			
 		char * attr = PyString_AsString(item);
 		
-		if (DEBUG)
-			printf("DEBUG: Public attribute: %s\n", attr);
+		debug("DEBUG: Public attribute: ");
+		debug(attr);
+		debug("\n");
 			
 		if (publicAttributes.find(attr) != publicAttributes.end())
 		{
@@ -364,8 +364,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	// Private attributes
 	////
-	if (DEBUG)
-		printf("DEBUG: Checking private attributes\n");
+	debug("DEBUG: Checking private attributes\n");
 	
 	numLines = PyList_Size(privateAttrs);
 
@@ -391,8 +390,9 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 			
 		char * attr = PyString_AsString(item);
 		
-		if (DEBUG)
-			printf("DEBUG: Private attribute: %s\n", attr);
+		debug("DEBUG: Private attribute: ");
+		debug(attr);
+		debug("\n");
 			
 		if (publicAttributes.find(attr) != publicAttributes.end() ||
 		    privateAttributes.find(attr) != privateAttributes.end())
@@ -408,18 +408,16 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	// Default policy
 	////
-	if (DEBUG) 
-		printf("DEBUG: Checking setting default policy to");
 	bool defPol = PyObject_IsTrue(defaultPolicy) == 1;
-	if (DEBUG) {
-		if (defPol)
-			printf(" true.\n");
-		else
-			printf(" false.\n");
-	}
 	
-	if (DEBUG)
-		printf("DEBUG: Creating target class\n");	
+	debug("DEBUG: Checking setting default policy to");
+	if (defPol)
+		debug(" true.\n");
+	else
+		debug(" false.\n");
+	
+	
+	debug("DEBUG: Creating target class\n");	
 	TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
 	                   privateAttributes, defPol);
 	PyObject * builder = encapBuilder_init(targetClass);
