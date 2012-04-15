@@ -13,5 +13,5 @@ def polF():
 A = cOpaque.makeOpaque(A, [ ("field",polF), ("data",polT) ] )
 
 # Do not delete policies, yields segmentation fault!
-#del polF
-#del polT
+del polF
+del polT

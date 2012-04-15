@@ -2,7 +2,7 @@ import cOpaque
 
 def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
     import ConfigParser
-    cOpaque.enableDebug()
+    #cOpaque.enableDebug()
     config = ConfigParser.RawConfigParser(allow_no_value=True)
 
     if type(cfgFileName)==str: config.read(cfgFileName)

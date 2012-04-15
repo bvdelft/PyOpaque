@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 import unittest
 import os
@@ -74,8 +75,8 @@ deposit =public
         self.instance=self.account1()
 
     def testDeny(self):
-        self.assertRaiseRuntimeError(self.instance,'history')
         self.assertRaiseRuntimeError(self.instance,'balance')
+        self.assertRaiseRuntimeError(self.instance,'history')
 
     def testAllow(self):
         self.assertEqual(self.instance.owner,'Bart')
