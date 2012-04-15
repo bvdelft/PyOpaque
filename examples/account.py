@@ -12,5 +12,5 @@ class account():
           self.history.append(('deposit',amount))
           self.balance+=amount
 
-#import opaque
-#account=opaque.applyPolicy('opaque.cfg',account)
+from opaque import applyPolicy
+account=applyPolicy(account,'account.cfg')
