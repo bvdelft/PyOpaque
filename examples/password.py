@@ -19,4 +19,5 @@ class password():
 '''Uncomment the following lines to protect the password field'''
 #import cOpaque
 #password=cOpaque.makeOpaque(password, [], ['password','triesLeft'] , True )
+#del cOpaque
 pass1=password('thisisasecret')
