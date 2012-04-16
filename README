@@ -1,10 +1,7 @@
 Just some quick start instructions:
 
-- cd src
-- make
-- cp cOpaquemodule.so ../examples
-- cp opaque.py ../examples
-- cd ../examples
-- ipython password.py or account
+- python setup.py install_examples
+- cd examples
+- ipython password.py or account.py
 
-(read comments in examples/nest.py and examples/simple.py
+(read comments in examples password.py or account.py for more instructions)

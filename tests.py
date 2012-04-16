@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 import unittest
 import os
-os.system('cd src; make')
-import sys
-sys.path.insert(0, 'src/')
-import cOpaque
+os.system('cd opaque; make')
+from opaque import cOpaque
 
 class A():
     def __init__(self,q):
