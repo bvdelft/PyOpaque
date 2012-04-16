@@ -42,7 +42,7 @@ class TestSimpleAccess(unittest.TestCase):
         self.assertRaiseRuntimeError(a,'data')
         self.assertRaiseRuntimeError(a,'thisFieldDoesNotExist')
 
-from policies.opaque import applyPolicy
+from opaque import applyPolicy
 import io
 
 class account():
