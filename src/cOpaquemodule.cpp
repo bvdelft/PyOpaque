@@ -18,6 +18,86 @@ static void debug(const char * text) {
 }
 
 
+/*----------------------------------------------------------------------------*/
+////// EncapsulatedAttribute ///////////////////////////////////////////////////
+
+/**
+* Deallocator for encapsulatedAttribute
+**/
+static void encapsulatedAttribute_dealloc(PyObject* self)
+{
+	PyObject_Del(((EncapsulatedAttribute*) self)->attPointer);
+	PyObject_Del(self);
+}
+
+
+static PyObject * EAGetAttr(PyObject* self, char * attr) {
+//	return PyObject_GetAttrString(((EncapsulatedAttribute*)self)->attPointer,attr);
+	return NULL;
+}
+
+static PyObject * EACall(PyObject * self, PyObject *args, PyObject *other)
+{
+    return PyObject_CallObject(((EncapsulatedAttribute*)self)->attPointer, args);
+}
+
+
+static PyMethodDef EAMethods[] = 
+{
+  {NULL, NULL, 0, NULL} 
+} ;
+
+// TODO change tp_name
+PyTypeObject* makeEncapsulatedAttribute() 
+{
+	PyTypeObject * encapsulatedAttribute = 
+		(PyTypeObject *)malloc(sizeof(PyTypeObject));
+
+	memset(encapsulatedAttribute, 0, sizeof(PyTypeObject));
+	PyTypeObject dummy = {PyObject_HEAD_INIT((PyTypeObject*)NULL)};
+	memcpy(encapsulatedAttribute, &dummy, sizeof(PyObject));
+
+	encapsulatedAttribute->tp_name = const_cast<char*>("EncapsulatedAttribute");
+	encapsulatedAttribute->tp_basicsize = sizeof(EncapsulatedAttribute);
+
+	// TODO Not really sure what line below does.
+	encapsulatedAttribute->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
+								Py_TPFLAGS_CHECKTYPES;
+	encapsulatedAttribute->tp_doc = NULL;
+
+	encapsulatedAttribute->tp_dealloc = encapsulatedAttribute_dealloc;
+
+	encapsulatedAttribute->tp_getattr = EAGetAttr;
+	encapsulatedAttribute->tp_methods = EAMethods;
+	encapsulatedAttribute->tp_call = EACall;
+
+	if(PyType_Ready(encapsulatedAttribute)<0)
+		printf("Err: PyType_Ready: encapsulatedAttribute");
+
+	return encapsulatedAttribute;
+
+}
+
+/**
+* There can be only one (EncapsulatedAttributeType).
+**/
+static PyTypeObject* EncapsulatedAttributeType = makeEncapsulatedAttribute();
+
+/**
+* Creates a new EncapsulatedAttribute for the specified attribute
+**/                             
+static PyObject* encapAttribute_init(PyObject* att) 
+{
+	if (PyCallable_Check(att)) {
+		EncapsulatedAttribute* encapAttr;
+		encapAttr = PyObject_NEW(EncapsulatedAttribute, 
+		                              EncapsulatedAttributeType);
+		encapAttr->attPointer = att;
+		Py_XINCREF(att);
+		return (PyObject*) encapAttr;
+	}
+	return att;
+}
 
 /*----------------------------------------------------------------------------*/
 ////// EncapsulatedObject //////////////////////////////////////////////////////
@@ -42,11 +122,15 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 	set<char*, strPtrLess> publicAttributes = eobject->target->publicAttributes;
 
+	debug(attr);
+
 	debug("DEBUG: Checking for public attributes\n");
 
 	if (publicAttributes.count(attr) > 0) 
 	{ // Public attribute, flow allowed:
-		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
+		PyObject * a =  PyObject_GetAttrString(eobject->objPointer,attr);
+		PyObject * res = encapAttribute_init(a);
+		Py_XINCREF(res);
 		return res;
 	}
 	
@@ -72,7 +156,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 	if (eobject->target->defaultPublic) {
 	
-		PyObject * res =  PyObject_GetAttrString(eobject->objPointer,attr);
+		PyObject * a =  PyObject_GetAttrString(eobject->objPointer,attr);
+		PyObject * res = encapAttribute_init(a);
+		Py_XINCREF(res);
 		return res;
 	
 	} else {

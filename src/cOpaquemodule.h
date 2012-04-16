@@ -7,6 +7,12 @@ typedef struct
 	TargetClass* target;
 } EncapsulatedObject;
 
+typedef struct 
+{
+	PyObject_HEAD
+	PyObject* attPointer;
+} EncapsulatedAttribute;
+
 struct TargetClass 
 {
 	PyObject* target;
