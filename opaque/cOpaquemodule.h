@@ -30,8 +30,3 @@ typedef struct
 	TargetClass* target;
 } EObjectBuilder;
 
-
-
-
-
-

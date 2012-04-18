@@ -17,6 +17,104 @@ static void debug(const char * text) {
 		printf("%s",text);
 }
 
+/*----------------------------------------------------------------------------*/
+////// Encapsulating __builtin__.__import__ ////////////////////////////////////
+
+PyObject * BUILTIN_IMPORT;
+
+set<char*, strPtrLess> ImportBlacklist;
+
+PyObject * encapImport(PyObject * me, PyObject *args)
+{
+    if (BUILTIN_IMPORT != NULL)
+    {
+        (void) PyErr_Format(PyExc_RuntimeError, 
+                "cPyOpaque already encapsulated __builtin__.__import__");
+		return NULL;
+    }
+
+    PyObject * blacklist;
+
+	if (! PyArg_ParseTuple( args, "OO!", &BUILTIN_IMPORT, &PyList_Type, 
+	  &blacklist))
+		return NULL;
+	
+
+	debug("DEBUG: Adding blacklist\n");
+	
+	int numLines = PyList_Size(blacklist);
+
+	if (numLines < 0)
+	{
+		(void)PyErr_Format(PyExc_RuntimeError, "2nd argument is not a list");
+		return NULL;
+	}
+
+	int i;
+	for (i = 0; i < numLines; i++)
+	{
+		PyObject* item;
+
+		if (! (item = PyList_GetItem(blacklist, i)))
+			return NULL;
+			
+		if (!PyString_Check(item)) {
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Provided attribute not a string");
+			return NULL;
+		}
+			
+		char * attr = PyString_AsString(item);
+		
+		debug("DEBUG: Blacklisting: ");
+		debug(attr);
+		debug("\n");
+			
+		if (ImportBlacklist.find(attr) != ImportBlacklist.end())
+		{
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Blacklist %s appears more than once.",attr);
+			return NULL;
+		}
+		
+		ImportBlacklist.insert(attr);
+	}
+	
+	Py_INCREF(Py_None);
+    return Py_None;
+		
+}
+
+PyObject * doImport(PyObject * me, PyObject *args)
+{
+    char * name;
+    PyObject * globals;
+    PyObject * locals;
+    PyObject * fromlist;
+    int level;
+    
+    if (! PyArg_ParseTuple(args, "s|OOOi", &name, &globals, &locals, &fromlist, 
+        &level))     
+        return NULL;
+    
+    if (ImportBlacklist.count(name) > 0) 
+	{
+        (void) PyErr_Format(PyExc_RuntimeError, 
+                "Illegal import (%s)",name);
+		return NULL;
+    }
+    
+    if (BUILTIN_IMPORT == NULL)
+    {
+        (void) PyErr_Format(PyExc_RuntimeError, 
+                "__builtin__.__import__ not yet encapsulated");
+		return NULL;
+    }
+    
+    return PyObject_CallObject(BUILTIN_IMPORT, args);
+    
+}
+
 
 /*----------------------------------------------------------------------------*/
 ////// EncapsulatedAttribute ///////////////////////////////////////////////////
@@ -561,6 +659,8 @@ static PyMethodDef cOpaqueMethods[] =
 	{"makeOpaque",makeOpaque,METH_VARARGS,"Make a class opaque using the specified list of attribute/policy combinations. Returns a function that passes its arguments to the construction of an encapsulated object for the provided class. The attributes are accessible as according to the provided policies. Calls look as follows :\n class = cOpaque.makeOpaque(class, [(\"attr1\",pol1), (\"attr2\",pol2), ...])\n where each attribute can occur at most once and each pol1, pol2, ... refers to a function with arity 0 that returns True or False."} ,
 	{"enableDebug",enableDebug,METH_VARARGS,"Enable the debugger"} ,
 	{"disableDebug",disableDebug,METH_VARARGS,"Disable the debugger"} ,
+	{"encapImport",encapImport,METH_VARARGS,"Encapsulate __builtin__.__import__"},
+	{"doImport",doImport,METH_VARARGS,"Call the encapsulated __builtin__.__import__"},
 	{NULL, NULL, 0, NULL} 
 } ;
 

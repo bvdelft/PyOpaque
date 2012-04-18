@@ -18,7 +18,7 @@ class password():
             self.triesLeft -= 1
 
 '''Uncomment the following lines to protect the password field'''
-import cOpaque
+from opaque import cOpaque
 password=cOpaque.makeOpaque(password, ['checkPassword','username'], ['password','triesLeft'] , True )
 del cOpaque
 pass1=password('thisisasecret')
