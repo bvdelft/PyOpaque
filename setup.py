@@ -12,21 +12,19 @@ class examplesCommand(Command):
         self.build_platlib = None
         self.build_base = 'build'
         self.path_examples = 'examples'
+        self.build = None
 
     def finalize_options(self):
-        self.plat_name = get_platform()
-        plat_specifier = ".%s-%s" % (self.plat_name, sys.version[0:3])
-
-        if self.build_platlib is None:
-            self.build_platlib = os.path.join(self.build_base,
-                                              'lib' + plat_specifier)
-        print self.build_platlib
-        copy_tree(self.build_platlib,self.path_examples)
-
+        pass
 
     def run(self):
         for cmd_name in self.get_sub_commands():
             self.run_command(cmd_name)
+        self.plat_name = get_platform()
+        plat_specifier = ".%s-%s" % (self.plat_name, sys.version[0:3])
+
+        self.build_platlib = os.path.join(self.build_base, 'lib' + plat_specifier)
+        copy_tree(self.build_platlib,self.path_examples)
 
     sub_commands = [('build', lambda x: True)]
 
