@@ -24,9 +24,17 @@ struct TargetClass
 	TargetClass(PyObject *, char *, set<char*, strPtrLess>, set<char*, strPtrLess>, bool);
 };
 
+
+
+class EncapsulatedType : public PyTypeObject {
+  public:
+    TargetClass* target;
+};
+
 typedef struct 
 {
 	PyObject_HEAD
 	TargetClass* target;
 } EObjectBuilder;
+
 

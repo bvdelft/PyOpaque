@@ -186,6 +186,7 @@ static PyTypeObject* EncapsulatedAttributeType = makeEncapsulatedAttribute();
 **/                             
 static PyObject* encapAttribute_init(PyObject* att) 
 {
+	
 	if (PyCallable_Check(att)) {
 		EncapsulatedAttribute* encapAttr;
 		encapAttr = PyObject_NEW(EncapsulatedAttribute, 
@@ -215,6 +216,10 @@ static void encap_dealloc(PyObject* self)
 **/
 static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
+    
+	// TODO, important: should never allow access to
+	// - __class__
+
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 	
 
@@ -338,16 +343,21 @@ static void eObjectBuilder_dealloc(PyObject* self)
 }
 
 /**
-* Simulates the constructor for an encapsulated object. Creates an object
-* instance of the target to which this build method belongs using the provided
-* arguments. Wraps this object in an EncapsulatedObject and returns the result.
+* The only method for EObjectBuilder is the constructor-mimicing function build.
 **/
-static PyObject * build(PyObject* self, PyObject* args) {
-	EObjectBuilder *ob = (EObjectBuilder*)self;
+static PyMethodDef EOBMethods[] = 
+{
+  {NULL, NULL, 0, NULL} 
+} ;
+
+PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
+
+  
+    EncapsulatedType *etype = (EncapsulatedType*)self;
 
 	// Create the object to be encapsulated
 	PyObject* theObject; 
-	theObject = PyObject_CallObject(ob->target->target, args); 
+	theObject = PyObject_CallObject(etype->target->target, args); 
 	if (theObject == NULL)
 		return NULL;
 	
@@ -355,9 +365,9 @@ static PyObject * build(PyObject* self, PyObject* args) {
 	// Create an encapsulating object
 	EncapsulatedObject * encap =
 		(EncapsulatedObject *) PyObject_New(EncapsulatedObject, 
-										ob->target->encapType);
+										etype);
 	
-	encap->target = ob->target;
+	encap->target = etype->target;
 	// Py_XINCREF(ob->target->target);
 
 	// Store the object in the encapsulating one
@@ -370,29 +380,28 @@ static PyObject * build(PyObject* self, PyObject* args) {
 	return res;
 }
 
-/**
-* The only method for EObjectBuilder is the constructor-mimicing function build.
-**/
-static PyMethodDef EOBMethods[] = 
-{
-  {"build",build,METH_VARARGS,"Build method"} ,
-  {NULL, NULL, 0, NULL} 
-} ;
 
 /**
 * Constructs the EObjectBuilderType. Easier to make this function than to use 
 * the struct-approach.
 **/
-PyTypeObject* makeEObjectBuilderType() 
+EncapsulatedType* makeEObjectBuilderType(char * name) 
 {
-	PyTypeObject * eObjectBuilderType = 
-		(PyTypeObject *)malloc(sizeof(PyTypeObject));
+	EncapsulatedType * eObjectBuilderType = 
+		(EncapsulatedType *)malloc(sizeof(EncapsulatedType));
 
-	memset(eObjectBuilderType, 0, sizeof(PyTypeObject));
+	memset(eObjectBuilderType, 0, sizeof(EncapsulatedType));
 	PyTypeObject dummy = {PyObject_HEAD_INIT((PyTypeObject*)NULL)};
 	memcpy(eObjectBuilderType, &dummy, sizeof(PyObject));
 
-	eObjectBuilderType->tp_name = const_cast<char*>("EObjectBuilder");
+    // Set the type-instance specific name
+	debug("Name: ");
+	debug(name);
+	debug("\n");
+
+	eObjectBuilderType->tp_name = const_cast<char*>(name);
+	eObjectBuilderType->tp_getattr = EOGetAttr;
+	
 	eObjectBuilderType->tp_basicsize = sizeof(EObjectBuilder);
 
 	// TODO Not really sure what line below does.
@@ -403,39 +412,34 @@ PyTypeObject* makeEObjectBuilderType()
 	eObjectBuilderType->tp_dealloc = eObjectBuilder_dealloc;
 
 	eObjectBuilderType->tp_methods = EOBMethods;
+	eObjectBuilderType->tp_new = newEOB;
 
 	if(PyType_Ready(eObjectBuilderType)<0)
-		printf("Err: PyType_Ready: eObjectBuilderType");
+		printf("> Error: PyType_Ready: %s", name);
 
 	return eObjectBuilderType;
 
 }
 
 /**
-* There can be only one (EObjectBuilderType).
-**/
-static PyTypeObject* EObjectBuilderType = makeEObjectBuilderType();
-
-/**
 * Creates a new EObjectBuilder for the specified target class.
 **/                             
-static PyObject* encapBuilder_init(TargetClass* target) 
+static PyObject * encapBuilder_init(PyObject * module, char * name, TargetClass* target) 
 {
-	EObjectBuilder* encapB;
-	encapB = PyObject_NEW(EObjectBuilder, EObjectBuilderType);
-	encapB->target = target;
-	// Py_XINCREF(target->target);
-	return (PyObject*) encapB;
+    EncapsulatedType* EObjectBuilderType = makeEObjectBuilderType(name);
+	EObjectBuilderType->target = target;
+	Py_XINCREF(module);
+	Py_XINCREF(EObjectBuilderType);
+    PyModule_AddObject(module, name,(PyObject*) EObjectBuilderType);
+    Py_XINCREF((PyObject*) EObjectBuilderType);
+    return (PyObject*) EObjectBuilderType;
 }
 
 /*----------------------------------------------------------------------------*/
 ////// cOpaque /////////////////////////////////////////////////////////////////
 
-/**
-* Auxilary function. Returns the name of an object as module.name. Returns NULL
-* if unable to construct the name.
-**/
-static char * getObjectFullName(PyObject * obj) {
+
+static char * getObjectName(PyObject * obj) {
 	
 	if (! PyObject_HasAttrString(obj, "__name__"))
 		return NULL;
@@ -444,21 +448,24 @@ static char * getObjectFullName(PyObject * obj) {
 		return NULL;
 	char * name = PyString_AsString(nameattr);
 	
+	return name;
+}
+
+
+static PyObject * getObjectModule(PyObject * obj) {
+	
 	if (! PyObject_HasAttrString(obj, "__module__"))
 		return NULL;
 	PyObject * moduleattr = PyObject_GetAttrString(obj, "__module__");
-	if (! PyString_Check(moduleattr)) 
-		return NULL;
-	char * module = PyString_AsString(moduleattr);
+
+	PyObject * modules = PyObject_GetAttrString(PyImport_ImportModule("sys"), "modules");
+	PyObject * args = PyTuple_New(1);
+
+	Py_XINCREF(moduleattr);
+	PyTuple_SetItem(args, 0, moduleattr);
+
 	
-	char * res = (char*)malloc(strlen(name) + strlen(module) + 1);
-	strcpy(res, module);
-	strcat(res, ".");
-	strcat(res, name);
-	debug("Derived name: ");
-	debug(res);
-	debug("\n");
-	return res;
+	return PyObject_Call(PyObject_GetAttrString(modules, "get"), args, NULL);
 }
 
 /**
@@ -502,7 +509,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 		return NULL;
 	}
 
-	char * name = getObjectFullName(target);
+	char * name = getObjectName(target);
 	if (name == NULL)
 	{
 		(void)PyErr_Format(PyExc_RuntimeError, 
@@ -626,14 +633,10 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	debug("DEBUG: Creating target class\n");	
 	TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
 	                   privateAttributes, defPol);
-	PyObject * builder = encapBuilder_init(targetClass);
-	
-	Py_XINCREF(builder);
-	PyObject * res =  PyObject_GetAttrString(builder,"build");
-	Py_XINCREF(res);
-	
-	return res;
-
+	                   
+	                   
+	                   
+	return encapBuilder_init(getObjectModule(target), name, targetClass);
 }
 
 static PyObject * enableDebug(PyObject *dummy, PyObject *args)
@@ -669,5 +672,5 @@ static PyMethodDef cOpaqueMethods[] =
 **/
 PyMODINIT_FUNC initcOpaque(void)
 {
-	(void) Py_InitModule("cOpaque",cOpaqueMethods);
+   (void) Py_InitModule("cOpaque",cOpaqueMethods);
 }
