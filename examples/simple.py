@@ -1,16 +1,6 @@
 import random
-import types
-from opaque import cOpaque
+from opaque import opaque
 
-class opaque(object):
-    def __init__(self, arg1, arg2, arg3):  
-        self.pubarg = arg1
-        self.privarg = arg2
-        self.default = arg3
-
-    def __call__(self, klass):
-        return cOpaque.makeOpaque(klass, self.pubarg, self.privarg , self.default )
-            
 @opaque(['pub'], ['data'] , True)
 class simple():
      def __init__(self,data,pub):
