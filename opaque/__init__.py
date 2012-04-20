@@ -1,3 +1,2 @@
-from opaque import applyPolicy
-import cOpaque
-__all__ = ["cOpaque", "applyPolicy"]
+from opaque import applyPolicy,opaque
+__all__ = ["opaque", "applyPolicy"]

@@ -1,5 +1,14 @@
 import cOpaque
 
+class opaque(object):
+    def __init__(self, pubargs, privargs, default):
+        self.pubarg = pubargs
+        self.privarg = privargs
+        self.default = default
+
+    def __call__(self, klass):
+        return cOpaque.makeOpaque(klass, self.pubarg, self.privarg , self.default )
+
 def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
     import ConfigParser
     #cOpaque.enableDebug()

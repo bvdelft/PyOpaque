@@ -3,7 +3,7 @@
 import unittest
 import os
 os.system('cd opaque; make')
-from opaque import cOpaque
+from opaque import opaque
 
 class A():
     def __init__(self,q):
@@ -11,7 +11,7 @@ class A():
         self.data = q
 
 def opaquer(aClassObject,aField):
-    return cOpaque.makeOpaque(aClassObject, [ aField ], [] , False )
+    return opaque([ aField ], [] , False )(aClassObject)
 
 A=opaquer(A,'field')
 
