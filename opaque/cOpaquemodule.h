@@ -20,21 +20,11 @@ struct TargetClass
 	set<char*, strPtrLess> publicAttributes;
 	set<char*, strPtrLess> privateAttributes;
 	bool defaultPublic;
-	PyTypeObject * encapType;
 	TargetClass(PyObject *, char *, set<char*, strPtrLess>, set<char*, strPtrLess>, bool);
 };
-
-
 
 class EncapsulatedType : public PyTypeObject {
   public:
     TargetClass* target;
 };
-
-typedef struct 
-{
-	PyObject_HEAD
-	TargetClass* target;
-} EObjectBuilder;
-
 

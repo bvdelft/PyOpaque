@@ -2,28 +2,108 @@
 #include <set>
 using namespace std;
 
+/*----------------------------------------------------------------------------*/
+////// Assisting methods ///////////////////////////////////////////////////////
+
+// if set to true debug information is printed
+// can be controlled by functions within the module
+bool DEBUG = false;
+
+/**
+* Prints debug text
+**/
+static void debug(const char * text) {
+	if (DEBUG)
+		printf("%s",text);
+}
+
+// Enable debugging
+static PyObject * enableDebug(PyObject *dummy, PyObject *args)
+{
+	DEBUG = true;
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+// Disable debugging
+static PyObject * disableDebug(PyObject *dummy, PyObject *args)
+{
+	DEBUG = false;
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+
+/**
+* For performing searches in sets etc.
+**/
 struct strPtrLess {
    bool operator( )(const char* p1,const char* p2) const {
       return strcmp(p1,p2) < 0;
    }
 };
 
+/**
+* Convert a python object representing a list of strings to a set in C
+**/
+static bool argToCSet(PyObject* list, set<char*, strPtrLess> cset) {
+
+    int numLines = PyList_Size(list);
+	if (numLines < 0)
+	{
+		(void)PyErr_Format(PyExc_RuntimeError, "Argument is not a list");
+		return false;
+	}
+
+	int i;
+	for (i = 0; i < numLines; i++)
+	{
+		PyObject* item;
+
+		if (! (item = PyList_GetItem(list, i)))
+			return NULL;
+			
+		if (!PyString_Check(item)) {
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"Provided list-argument not a string");
+			return false;
+		}
+			
+		char * attr = PyString_AsString(item);
+		
+		debug("DEBUG: Adding to list: ");
+		debug(attr);
+		debug("\n");
+			
+		if (cset.find(attr) != cset.end())
+		{
+			(void)PyErr_Format(PyExc_RuntimeError, 
+				"List entry %s appears more than once.",attr);
+			return false;
+		}
+		
+		cset.insert(attr);
+	}
+	
+	return true;
+	
+}
+
 #include "cOpaquemodule.h"
 
-bool DEBUG = false;
-
-static void debug(const char * text) {
-	if (DEBUG)
-		printf("%s",text);
-}
 
 /*----------------------------------------------------------------------------*/
 ////// Encapsulating __builtin__.__import__ ////////////////////////////////////
 
+// Pointer to the original import function
 PyObject * BUILTIN_IMPORT;
 
+// List of module names that cannot be imported (e.g. sys, gc)
 set<char*, strPtrLess> ImportBlacklist;
 
+/**
+* Store the function and the blacklist
+**/
 PyObject * encapImport(PyObject * me, PyObject *args)
 {
     if (BUILTIN_IMPORT != NULL)
@@ -42,49 +122,17 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 
 	debug("DEBUG: Adding blacklist\n");
 	
-	int numLines = PyList_Size(blacklist);
-
-	if (numLines < 0)
-	{
-		(void)PyErr_Format(PyExc_RuntimeError, "2nd argument is not a list");
-		return NULL;
-	}
-
-	int i;
-	for (i = 0; i < numLines; i++)
-	{
-		PyObject* item;
-
-		if (! (item = PyList_GetItem(blacklist, i)))
-			return NULL;
-			
-		if (!PyString_Check(item)) {
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Provided attribute not a string");
-			return NULL;
-		}
-			
-		char * attr = PyString_AsString(item);
-		
-		debug("DEBUG: Blacklisting: ");
-		debug(attr);
-		debug("\n");
-			
-		if (ImportBlacklist.find(attr) != ImportBlacklist.end())
-		{
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Blacklist %s appears more than once.",attr);
-			return NULL;
-		}
-		
-		ImportBlacklist.insert(attr);
-	}
+	if (!argToCSet(blacklist, ImportBlacklist))
+    	return NULL;
 	
 	Py_INCREF(Py_None);
     return Py_None;
 		
 }
 
+/**
+* Wrapped import
+**/
 PyObject * doImport(PyObject * me, PyObject *args)
 {
     char * name;
@@ -97,17 +145,17 @@ PyObject * doImport(PyObject * me, PyObject *args)
         &level))     
         return NULL;
     
-    if (ImportBlacklist.count(name) > 0) 
-	{
-        (void) PyErr_Format(PyExc_RuntimeError, 
-                "Illegal import (%s)",name);
-		return NULL;
-    }
-    
     if (BUILTIN_IMPORT == NULL)
     {
         (void) PyErr_Format(PyExc_RuntimeError, 
                 "__builtin__.__import__ not yet encapsulated");
+		return NULL;
+    }
+    
+    if (ImportBlacklist.count(name) > 0) 
+	{
+        (void) PyErr_Format(PyExc_RuntimeError, 
+                "Illegal import (%s)",name);
 		return NULL;
     }
     
@@ -120,7 +168,7 @@ PyObject * doImport(PyObject * me, PyObject *args)
 ////// EncapsulatedAttribute ///////////////////////////////////////////////////
 
 /**
-* Deallocator for encapsulatedAttribute
+* Deallocator
 **/
 static void encapsulatedAttribute_dealloc(PyObject* self)
 {
@@ -128,22 +176,23 @@ static void encapsulatedAttribute_dealloc(PyObject* self)
 	PyObject_Del(self);
 }
 
-
-static PyObject * EAGetAttr(PyObject* self, char * attr) {
-//	return PyObject_GetAttrString(((EncapsulatedAttribute*)self)->attPointer,attr);
+/**
+* Do not return any attributes on an attribute (e.g. __self__ for a bounded
+* class method defies everything)
+**/
+static PyObject * EAGetAttr(PyObject* self, char * attr) 
+{
 	return NULL;
 }
 
+/**
+* Calling the attribute is fine
+**/
 static PyObject * EACall(PyObject * self, PyObject *args, PyObject *other)
 {
     return PyObject_CallObject(((EncapsulatedAttribute*)self)->attPointer, args);
 }
 
-
-static PyMethodDef EAMethods[] = 
-{
-  {NULL, NULL, 0, NULL} 
-} ;
 
 // TODO change tp_name
 PyTypeObject* makeEncapsulatedAttribute() 
@@ -166,7 +215,7 @@ PyTypeObject* makeEncapsulatedAttribute()
 	encapsulatedAttribute->tp_dealloc = encapsulatedAttribute_dealloc;
 
 	encapsulatedAttribute->tp_getattr = EAGetAttr;
-	encapsulatedAttribute->tp_methods = EAMethods;
+	encapsulatedAttribute->tp_methods = NULL;
 	encapsulatedAttribute->tp_call = EACall;
 
 	if(PyType_Ready(encapsulatedAttribute)<0)
@@ -202,16 +251,6 @@ static PyObject* encapAttribute_init(PyObject* att)
 ////// EncapsulatedObject //////////////////////////////////////////////////////
 
 /**
-* Deallocation of encapsulating object. Deallocates both the object that is 
-* encapsulated as well as the encapsulating object.
-**/
-static void encap_dealloc(PyObject* self)
-{
-	PyObject_Del(((EncapsulatedObject*) self)->objPointer);
-	PyObject_Del(self);
-}
-
-/**
 * __getattr__ for EncapsulatedObject. 
 **/
 static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
@@ -219,9 +258,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
     
 	// TODO, important: should never allow access to
 	// - __class__
+	// - __dict__
 
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
-	
 
 	set<char*, strPtrLess> publicAttributes = eobject->target->publicAttributes;
 
@@ -229,8 +268,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 	debug("DEBUG: Checking for public attributes\n");
 
+    // Public attribute, flow allowed:
 	if (publicAttributes.count(attr) > 0) 
-	{ // Public attribute, flow allowed:
+	{ 
 		PyObject * a =  PyObject_GetAttrString(eobject->objPointer,attr);
 		PyObject * res = encapAttribute_init(a);
 		Py_XINCREF(res);
@@ -241,8 +281,9 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 	debug("DEBUG: Checking for private attributes\n");
 
+    // Private attribute, flow not allowed:
 	if (privateAttributes.count(attr) > 0) 
-	{ // Private attribute, flow not allowed:
+	{
 		(void) PyErr_Format(PyExc_RuntimeError, 
                 "The policy of attribute '%s' of '\%s' object disallows access",
                 attr, eobject->target->name);
@@ -275,42 +316,6 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 }
 
-/**
-* Generates a new encapsulated object type with the provided name, such that the
-* correct name appears in message, __name__ etc.
-**/
-PyTypeObject* makeEncapObjectType(char * name) 
-{
-	PyTypeObject* encapObjectType = (PyTypeObject*)malloc(sizeof(PyTypeObject));
-	memset(encapObjectType, 0, sizeof(PyTypeObject));
-
-	// Copy the standard PyObject header
-	PyTypeObject dummy = {PyObject_HEAD_INIT((PyTypeObject*)NULL)};
-	memcpy(encapObjectType, &dummy, sizeof(PyObject));
-
-	// Set the type-instance specific name
-	debug("Name: ");
-	debug(name);
-	debug("\n");
-	encapObjectType->tp_name = const_cast<char*>(name);
-
-	// The __getattr__ function (= applying the policies)    
-	encapObjectType->tp_getattr = EOGetAttr;
-
-	// Default stuff
-	encapObjectType->tp_basicsize = sizeof(EncapsulatedObject);
-	// TODO Not really sure what line below does.
-	encapObjectType->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-								Py_TPFLAGS_CHECKTYPES;
-	encapObjectType->tp_doc = NULL;
-	encapObjectType->tp_dealloc = encap_dealloc;
-
-	if(PyType_Ready(encapObjectType)<0)
-		printf("Err: PyType_Ready: class %s", name);
-
-	return encapObjectType;
-}
-
 /*----------------------------------------------------------------------------*/
 ////// TargetClass /////////////////////////////////////////////////////////////
 
@@ -328,28 +333,23 @@ TargetClass::TargetClass(PyObject * _target, char * _name,
 	publicAttributes = _publicAttributes;
 	privateAttributes = _privateAttributes;
 	defaultPublic = _defaultPublic;
-	encapType = makeEncapObjectType(_name);
 }
 
 /*----------------------------------------------------------------------------*/
-////// EObjectBuilder //////////////////////////////////////////////////////////
+////// EncapsulatedType ////////////////////////////////////////////////////////
 
 /**
-* Deallocator for EObjectBuilder, standard.
+* Deallocator for EncapsulatedType instances, standard.
 **/
-static void eObjectBuilder_dealloc(PyObject* self)
+static void eEncapsulatedType_dealloc(PyObject* self)
 {
-  PyObject_Del(self);
+    PyObject_Del(((EncapsulatedObject*) self)->objPointer);
+    PyObject_Del(self);
 }
 
 /**
-* The only method for EObjectBuilder is the constructor-mimicing function build.
+* Creates a new encapsulating object
 **/
-static PyMethodDef EOBMethods[] = 
-{
-  {NULL, NULL, 0, NULL} 
-} ;
-
 PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
 
   
@@ -368,7 +368,6 @@ PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
 										etype);
 	
 	encap->target = etype->target;
-	// Py_XINCREF(ob->target->target);
 
 	// Store the object in the encapsulating one
 	encap->objPointer = theObject;
@@ -382,63 +381,63 @@ PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
 
 
 /**
-* Constructs the EObjectBuilderType. Easier to make this function than to use 
-* the struct-approach.
+* Constructs the EncapsulatedType. 
 **/
-EncapsulatedType* makeEObjectBuilderType(char * name) 
+EncapsulatedType* makeEncapsulatedType(char * name) 
 {
-	EncapsulatedType * eObjectBuilderType = 
+	EncapsulatedType * encapsulatedType = 
 		(EncapsulatedType *)malloc(sizeof(EncapsulatedType));
 
-	memset(eObjectBuilderType, 0, sizeof(EncapsulatedType));
+	memset(encapsulatedType, 0, sizeof(EncapsulatedType));
 	PyTypeObject dummy = {PyObject_HEAD_INIT((PyTypeObject*)NULL)};
-	memcpy(eObjectBuilderType, &dummy, sizeof(PyObject));
+	memcpy(encapsulatedType, &dummy, sizeof(PyObject));
 
     // Set the type-instance specific name
 	debug("Name: ");
 	debug(name);
 	debug("\n");
 
-	eObjectBuilderType->tp_name = const_cast<char*>(name);
-	eObjectBuilderType->tp_getattr = EOGetAttr;
+	encapsulatedType->tp_name = const_cast<char*>(name);
+	encapsulatedType->tp_getattr = EOGetAttr;
 	
-	eObjectBuilderType->tp_basicsize = sizeof(EObjectBuilder);
+	encapsulatedType->tp_basicsize = sizeof(EncapsulatedType);
 
 	// TODO Not really sure what line below does.
-	eObjectBuilderType->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-								Py_TPFLAGS_CHECKTYPES;
-	eObjectBuilderType->tp_doc = NULL;
+	encapsulatedType->tp_flags = Py_TPFLAGS_DEFAULT    | 
+	                             Py_TPFLAGS_BASETYPE   |
+								 Py_TPFLAGS_CHECKTYPES ;
+	encapsulatedType->tp_doc = NULL;
 
-	eObjectBuilderType->tp_dealloc = eObjectBuilder_dealloc;
+	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
-	eObjectBuilderType->tp_methods = EOBMethods;
-	eObjectBuilderType->tp_new = newEOB;
+	encapsulatedType->tp_methods = NULL;
+	encapsulatedType->tp_new = newEOB;
 
-	if(PyType_Ready(eObjectBuilderType)<0)
+	if(PyType_Ready(encapsulatedType)<0)
 		printf("> Error: PyType_Ready: %s", name);
 
-	return eObjectBuilderType;
+	return encapsulatedType;
 
 }
 
 /**
-* Creates a new EObjectBuilder for the specified target class.
+* Creates a new EncapsulatedType for the specified target class.
 **/                             
-static PyObject * encapBuilder_init(PyObject * module, char * name, TargetClass* target) 
+static PyObject * encapType_init(PyObject * module, char * name, TargetClass* target) 
 {
-    EncapsulatedType* EObjectBuilderType = makeEObjectBuilderType(name);
-	EObjectBuilderType->target = target;
+    EncapsulatedType* myEncapsulatedType = makeEncapsulatedType(name);
+	myEncapsulatedType->target = target;
 	Py_XINCREF(module);
-	Py_XINCREF(EObjectBuilderType);
-    PyModule_AddObject(module, name,(PyObject*) EObjectBuilderType);
-    Py_XINCREF((PyObject*) EObjectBuilderType);
-    return (PyObject*) EObjectBuilderType;
+	Py_XINCREF(myEncapsulatedType);
+    PyModule_AddObject(module, name,(PyObject*) myEncapsulatedType);
+    Py_XINCREF((PyObject*) myEncapsulatedType);
+    return (PyObject*) myEncapsulatedType;
 }
 
 /*----------------------------------------------------------------------------*/
 ////// cOpaque /////////////////////////////////////////////////////////////////
 
-
+// Helper function, returns name
 static char * getObjectName(PyObject * obj) {
 	
 	if (! PyObject_HasAttrString(obj, "__name__"))
@@ -451,7 +450,7 @@ static char * getObjectName(PyObject * obj) {
 	return name;
 }
 
-
+// Helper function, returns pointer to module
 static PyObject * getObjectModule(PyObject * obj) {
 	
 	if (! PyObject_HasAttrString(obj, "__module__"))
@@ -470,18 +469,13 @@ static PyObject * getObjectModule(PyObject * obj) {
 
 /**
 * List of classes that have been made opaque - a class can only be made opaque
-* once, otherwise we run into some problems.
+* once, otherwise we run into some problems. -- still required?
 **/
 static set<PyObject*> knownTargets;
 
 /**
-* Make a class opaque using the specified list of attribute/policy combinations.
-* Returns a function that passes its arguments to the construction of an 
-* encapsulated object for the provided class. The attributes are accessible as
-* according to the provided policies. Calls look as follows :
-* 	cOpaque.makeOpaque(class, [("attr1",pol1), ("attr2",pol2), ...])
-* where each attribute can occur at most once and each pol1, pol2, ... refers to
-* a function with arity 0 that returns True or False.
+* Creates a new type for the provided class, with list of public and private 
+* attributes.
 **/
 static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 {
@@ -535,88 +529,22 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	debug("DEBUG: Checking public attributes\n");
 	
-	int numLines = PyList_Size(publicAttrs);
 
-	if (numLines < 0)
-	{
-		(void)PyErr_Format(PyExc_RuntimeError, "2nd argument is not a list");
-		return NULL;
-	}
-
-	int i;
 	set<char*, strPtrLess> publicAttributes;
-	for (i = 0; i < numLines; i++)
-	{
-		PyObject* item;
-
-		if (! (item = PyList_GetItem(publicAttrs, i)))
-			return NULL;
-			
-		if (!PyString_Check(item)) {
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Provided attribute not a string");
-			return NULL;
-		}
-			
-		char * attr = PyString_AsString(item);
-		
-		debug("DEBUG: Public attribute: ");
-		debug(attr);
-		debug("\n");
-			
-		if (publicAttributes.find(attr) != publicAttributes.end())
-		{
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Attribute %s appears more than once.",attr);
-			return NULL;
-		}
-		
-		publicAttributes.insert(attr);
-	}
+	
+	if (!argToCSet(publicAttrs, publicAttributes))
+    	return NULL;
+	
 	
 	////
 	// Private attributes
 	////
 	debug("DEBUG: Checking private attributes\n");
 	
-	numLines = PyList_Size(privateAttrs);
-
-	if (numLines < 0)
-	{
-		(void)PyErr_Format(PyExc_RuntimeError, "3th argument is not a list");
-		return NULL;
-	}
-
 	set<char*, strPtrLess> privateAttributes;
-	for (i = 0; i < numLines; i++)
-	{
-		PyObject* item;
-		
-		if (! (item = PyList_GetItem(privateAttrs, i)))
-			return NULL;
-			
-		if (!PyString_Check(item)) {
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Provided attribute not a string");
-			return NULL;
-		}
-			
-		char * attr = PyString_AsString(item);
-		
-		debug("DEBUG: Private attribute: ");
-		debug(attr);
-		debug("\n");
-			
-		if (publicAttributes.find(attr) != publicAttributes.end() ||
-		    privateAttributes.find(attr) != privateAttributes.end())
-		{
-			(void)PyErr_Format(PyExc_RuntimeError, 
-				"Attribute %s appears more than once.",attr);
-			return NULL;
-		}
-		
-		privateAttributes.insert(attr);
-	}
+	
+	if (!argToCSet(privateAttrs, privateAttributes))
+    	return NULL;
 	
 	////
 	// Default policy
@@ -636,27 +564,11 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	                   
 	                   
 	                   
-	return encapBuilder_init(getObjectModule(target), name, targetClass);
-}
-
-static PyObject * enableDebug(PyObject *dummy, PyObject *args)
-{
-	DEBUG = true;
-	Py_INCREF(Py_None);
-	return Py_None;
-}
-
-static PyObject * disableDebug(PyObject *dummy, PyObject *args)
-{
-	DEBUG = false;
-	Py_INCREF(Py_None);
-	return Py_None;
+	return encapType_init(getObjectModule(target), name, targetClass);
 }
 
 
-/**
-* Only one method: makeOpaque.
-**/
+
 static PyMethodDef cOpaqueMethods[] = 
 {
 	{"makeOpaque",makeOpaque,METH_VARARGS,"Make a class opaque using the specified list of attribute/policy combinations. Returns a function that passes its arguments to the construction of an encapsulated object for the provided class. The attributes are accessible as according to the provided policies. Calls look as follows :\n class = cOpaque.makeOpaque(class, [(\"attr1\",pol1), (\"attr2\",pol2), ...])\n where each attribute can occur at most once and each pol1, pol2, ... refers to a function with arity 0 that returns True or False."} ,
