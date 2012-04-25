@@ -46,7 +46,7 @@ struct strPtrLess {
 /**
 * Convert a python object representing a list of strings to a set in C
 **/
-static bool argToCSet(PyObject* list, set<char*, strPtrLess> cset) {
+static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset) {
 
     int numLines = PyList_Size(list);
 	if (numLines < 0)
@@ -75,14 +75,14 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess> cset) {
 		debug(attr);
 		debug("\n");
 			
-		if (cset.find(attr) != cset.end())
+		if (cset->find(attr) != cset->end())
 		{
 			(void)PyErr_Format(PyExc_RuntimeError, 
 				"List entry %s appears more than once.",attr);
 			return false;
 		}
 		
-		cset.insert(attr);
+		cset->insert(attr);
 	}
 	
 	return true;
@@ -122,7 +122,7 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 
 	debug("DEBUG: Adding blacklist\n");
 	
-	if (!argToCSet(blacklist, ImportBlacklist))
+	if (!argToCSet(blacklist, &ImportBlacklist))
     	return NULL;
 	
 	Py_INCREF(Py_None);
@@ -488,7 +488,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	// Checks on the provided arguments
 
 	if (! PyArg_ParseTuple( args, "OO!O!O", &target, &PyList_Type, &publicAttrs,
-                                    &PyList_Type, &privateAttrs, &defaultPolicy)) 
+                                   &PyList_Type, &privateAttrs, &defaultPolicy)) 
 		return NULL;
 	
 	////
@@ -496,7 +496,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	////
 	debug("DEBUG: Checking target class\n");
 	
-	if (!PyClass_Check(target)) // TODO: currently rejects:	class A(object):
+	if (!PyClass_Check(target) && !PyType_Check(target))
 	{
 		(void)PyErr_Format(PyExc_RuntimeError, 
 			"First argument should be a class");
@@ -532,7 +532,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 
 	set<char*, strPtrLess> publicAttributes;
 	
-	if (!argToCSet(publicAttrs, publicAttributes))
+	if (!argToCSet(publicAttrs, &publicAttributes))
     	return NULL;
 	
 	
@@ -543,7 +543,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	
 	set<char*, strPtrLess> privateAttributes;
 	
-	if (!argToCSet(privateAttrs, privateAttributes))
+	if (!argToCSet(privateAttrs, &privateAttributes))
     	return NULL;
 	
 	////

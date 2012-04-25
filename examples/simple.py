@@ -1,7 +1,7 @@
 import random
-from opaque import opaque
+from opaque import cOpaque
 
-@opaque(['pub'], ['data'] , True)
+#@opaque(['pub'], ['data'] , False)
 class simple():
      def __init__(self,data,pub):
           self.data = data
@@ -10,4 +10,9 @@ class simple():
 
 # simple = opaque(['pub'], ['data'] , True)(simple)
 
+cOpaque.enableDebug()
+simple = cOpaque.makeOpaque(simple,['pub'], ['data'] , False)
+
 simple1=simple(random.randint(0,100000),{1:'iamsuperbart'})
+
+
