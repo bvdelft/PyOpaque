@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <set>
+#include <typeinfo>
 using namespace std;
 
 /*----------------------------------------------------------------------------*/
@@ -350,10 +351,26 @@ static void eEncapsulatedType_dealloc(PyObject* self)
 /**
 * Creates a new encapsulating object
 **/
-PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
-
-  
-    EncapsulatedType *etype = (EncapsulatedType*)self;
+PyObject * newEOB(PyTypeObject * type, PyObject * args, PyObject *kargs) {
+    
+    debug("Generating new instance for \n");
+    
+    EncapsulatedType* etype = (EncapsulatedType*)(type);
+    
+    // Might be called with a subtype, go up until we get to EncapsulatedType:
+    while (etype != NULL && etype->target == NULL) {
+    	
+    	debug("Not enc type\n");
+    	etype = (EncapsulatedType*) 
+    				PyObject_GetAttrString((PyObject*)etype, "__base__");
+    }
+    
+    if (etype == NULL)
+    	return NULL;
+    
+    debug("Target: ");    
+    debug(etype->target->name);
+    debug(" \n");
 
 	// Create the object to be encapsulated
 	PyObject* theObject; 
@@ -361,22 +378,29 @@ PyObject * newEOB(PyTypeObject * self, PyObject * args, PyObject *kargs) {
 	if (theObject == NULL)
 		return NULL;
 	
+	debug("Created object to encapsulate.\n");	
 
 	// Create an encapsulating object
 	EncapsulatedObject * encap =
 		(EncapsulatedObject *) PyObject_New(EncapsulatedObject, 
 										etype);
+										
+	debug("Created encapsulating object.\n");
 	
 	encap->target = etype->target;
 
 	// Store the object in the encapsulating one
 	encap->objPointer = theObject;
 	Py_XINCREF(theObject);
+	
+	debug("Combined these two.\n");
 
 	// Return the result
 	PyObject * res = (PyObject*) encap;
 	Py_XINCREF(res);
-	return res;
+	
+	debug("Returning encapsulating object.\n");
+	return type->tp_alloc(type, 0);
 }
 
 
@@ -402,7 +426,6 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	
 	encapsulatedType->tp_basicsize = sizeof(EncapsulatedType);
 
-	// TODO Not really sure what line below does.
 	encapsulatedType->tp_flags = Py_TPFLAGS_DEFAULT    | 
 	                             Py_TPFLAGS_BASETYPE   |
 								 Py_TPFLAGS_CHECKTYPES ;
@@ -415,6 +438,8 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 
 	if(PyType_Ready(encapsulatedType)<0)
 		printf("> Error: PyType_Ready: %s", name);
+	else
+		debug("PyType Ready\n");
 
 	return encapsulatedType;
 

@@ -11,8 +11,11 @@ class simple():
 # simple = opaque(['pub'], ['data'] , True)(simple)
 
 cOpaque.enableDebug()
-simple = cOpaque.makeOpaque(simple,['pub'], ['data'] , False)
+simple = cOpaque.makeOpaque(simple,['pub'], ['data'] , True)
 
 simple1=simple(random.randint(0,100000),{1:'iamsuperbart'})
 
+class M(simple):
+	pass
 
+m=M(45,12)
