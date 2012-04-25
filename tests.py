@@ -2,18 +2,27 @@
 # -*- coding: utf-8 -*-
 import unittest
 import os
-os.system('cd opaque; make')
+# os.system('cd opaque; make')
 from opaque import opaque
 
 class A():
     def __init__(self,q):
         self.field = q
         self.data = q
-
+        
+class B(object):
+    def __init__(self,q):
+        self.field = q
+        self.data = q
+       
 def opaquer(aClassObject,aField):
     return opaque([ aField ], [] , False )(aClassObject)
 
 A=opaquer(A,'field')
+B=opaquer(B,'field')
+
+class C(A):
+	pass
 
 def assertRuntimeError(self,o,field):
      with self.assertRaises(RuntimeError) as cm:
@@ -39,6 +48,19 @@ class TestSimpleAccess(unittest.TestCase):
         self.assertTrue(a.field())
         self.assertRaiseRuntimeError(a,'data')
         self.assertRaiseRuntimeError(a,'thisFieldDoesNotExist')
+        
+class TestSubtypeObject(unittest.TestCase):
+    def test_opaquer(self):
+        b=B(2)
+        self.assertEqual(b.field,2)
+        self.assertRaiseRuntimeError(b,'data')
+
+class TestSubtypeObjectInstance(unittest.TestCase):
+    def test_opaquer(self):
+        c=C(2)
+        self.assertEqual(c.field,2)
+        self.assertRaiseRuntimeError(c,'data')
+
 
 from opaque import applyPolicy
 import io
