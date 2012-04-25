@@ -1,4 +1,4 @@
-from distutils.core import setup, Extension, Command
+from setuptools import setup, Extension, Command
 from distutils.util import get_platform
 from distutils.dir_util import copy_tree
 import os
@@ -37,5 +37,6 @@ setup (name = 'PyOpaque',
        license='MIT License',
        ext_modules = [Extension('opaque.cOpaque', sources = ['opaque/cOpaquemodule.cpp']) ],
        packages = ['opaque'],
+       test_suite='tests',
        cmdclass={'install_examples': examplesCommand})
 
