@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 import unittest
 from opaque import opaque
+from opaque import cOpaque
+
+cOpaque.enableDebug()
 
 class A():
     def __init__(self,q):
@@ -15,7 +18,7 @@ class B(object):
 
 def opaquer(aClassObject,aField):
     return opaque([ aField ], [] , False )(aClassObject)
-
+    
 A=opaquer(A,'field')
 B=opaquer(B,'field')
 
