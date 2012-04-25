@@ -400,7 +400,7 @@ PyObject * newEOB(PyTypeObject * type, PyObject * args, PyObject *kargs) {
 	Py_XINCREF(res);
 	
 	debug("Returning encapsulating object.\n");
-	return type->tp_alloc(type, 0);
+	return res;
 }
 
 
