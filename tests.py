@@ -17,9 +17,9 @@ def opaquer(aClassObject,aField):
     return opaque([ aField ], [] , False )(aClassObject)
 
 A=opaquer(A,'field')
-B=opaquer(B,'field')
+B=opaque([ 'field' ], [] , True )(B)
 
-class C(A):
+class C(B):
 	pass
 
 def assertRuntimeError(self,o,field):
@@ -47,18 +47,37 @@ class TestSimpleAccess(unittest.TestCase):
         self.assertRaiseRuntimeError(a,'data')
         self.assertRaiseRuntimeError(a,'thisFieldDoesNotExist')
 
+class TestDeny_insecure_attributes(unittest.TestCase):
+    def test_ifdefaultisFalse(self):
+        b=B(2)
+        self.assertRaiseRuntimeError(b,'__dict__')
+    def test_ifdefaultisTrue(self):
+        a=A(2)
+        self.assertRaiseRuntimeError(a,'__dict__')
+
 class TestSubtypeObject(unittest.TestCase):
     def test_opaquer(self):
         b=B(2)
         self.assertEqual(b.field,2)
         self.assertRaiseRuntimeError(b,'data')
 
-class TestSubtypeObjectInstance(unittest.TestCase):
-    def test_opaquer(self):
-        c=C(2)
-        self.assertEqual(c.field,2)
-        self.assertRaiseRuntimeError(c,'data')
+class TestExtendingClassSupport(unittest.TestCase):
+    def test_extendAndAccessClassAttributes(self):
+        C.newfield=3
+#        self.assertEqual(C.newfield,3)
 
+#    def test_extend(self):
+#        C.newfield=3
+#        c=C(2)
+#        self.assertEqual(c.newfield,3)
+#        self.assertEqual(c.field,2)
+#        self.assertRaiseRuntimeError(c,'data')
+
+#class TestSubtypeObjectInstance(unittest.TestCase):
+#    def test_opaquer(self):
+#        c=C(2)
+#        self.assertEqual(c.field,2)
+#        self.assertRaiseRuntimeError(c,'data')
 
 from opaque import applyPolicy
 import io
