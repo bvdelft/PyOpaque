@@ -256,6 +256,9 @@ static PyObject* encapAttribute_init(PyObject* att)
 **/
 static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
+    debug("Checking get attribute; ");
+    debug(attr);
+    debug("\n");
     
 	// TODO, important: should never allow access to
 	// - __class__
@@ -265,7 +268,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 	set<char*, strPtrLess> publicAttributes = eobject->target->publicAttributes;
 
-	debug(attr);
+	
 
 	debug("DEBUG: Checking for public attributes\n");
 
@@ -381,9 +384,7 @@ PyObject * newEOB(PyTypeObject * type, PyObject * args, PyObject *kargs) {
 	debug("Created object to encapsulate.\n");	
 
 	// Create an encapsulating object
-	EncapsulatedObject * encap =
-		(EncapsulatedObject *) PyObject_New(EncapsulatedObject, 
-										etype);
+	EncapsulatedObject * encap = (EncapsulatedObject *) type->tp_alloc(type, 0);
 										
 	debug("Created encapsulating object.\n");
 	
@@ -402,6 +403,26 @@ PyObject * newEOB(PyTypeObject * type, PyObject * args, PyObject *kargs) {
 	debug("Returning encapsulating object.\n");
 	return res;
 }
+
+PyObject * mm(PyObject * obj, PyObject *args) {
+    
+		return NULL;
+}
+
+
+PyObject * EOGetAttrS(PyObject * obj, PyObject *args) {
+    char * attr;
+    if (! PyArg_ParseTuple( args, "s", &attr)) 
+		return NULL;
+	return EOGetAttr(obj,attr);
+}
+
+static PyMethodDef EOMethods[] = 
+{
+	{"miauw",mm,METH_VARARGS,"DAS sd sdjkf !!!"} ,
+	{"__getattr__",EOGetAttrS,METH_VARARGS,"DAS sd sdjkf !!!"} ,
+	{NULL, NULL, 0, NULL} 
+} ;
 
 
 /**
@@ -433,7 +454,7 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
-	encapsulatedType->tp_methods = NULL;
+	encapsulatedType->tp_methods = EOMethods;
 	encapsulatedType->tp_new = newEOB;
 
 	if(PyType_Ready(encapsulatedType)<0)
