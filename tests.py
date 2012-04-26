@@ -2,66 +2,82 @@
 # -*- coding: utf-8 -*-
 import unittest
 from opaque import opaque
-from opaque import cOpaque
-
-cOpaque.enableDebug()
 
 class A():
     def __init__(self,q):
-        self.field = q
-        self.data = q
+        self.secret = q
+        self.public = q
 
 class B(object):
     def __init__(self,q):
-        self.field = q
-        self.data = q
+        self.secret = q
+        self.public = q
 
 def opaquer(aClassObject,aField):
     return opaque([ aField ], [] , False )(aClassObject)
-    
-A=opaquer(A,'field')
-B=opaquer(B,'field')
 
-class C(A):
+A=opaquer(A,'secret')
+B=opaque([ 'secret' ], [ 'public' ] , True )(B)
+
+class C(B):
 	pass
 
-def assertRuntimeError(self,o,field):
+def assertRuntimeError(self,o,secret):
      with self.assertRaises(RuntimeError) as cm:
-        getattr(o, field)
+        getattr(o, secret)
 
 unittest.TestCase.assertRaiseRuntimeError=assertRuntimeError
 
 class TestSimpleAccess(unittest.TestCase):
     def test_opaquer(self):
         a=A(2)
-        self.assertEqual(a.field,2)
-        self.assertRaiseRuntimeError(a,'data')
+        self.assertEqual(a.secret,2)
+        self.assertRaiseRuntimeError(a,'public')
 
     def test_opaquerAttrObject(self):
         c=A(2)
         a=A(c)
-        self.assertEqual(a.field.field,2)
-        self.assertRaiseRuntimeError(a.field,'data')
-        self.assertRaiseRuntimeError(a,'data')
+        self.assertEqual(a.secret.secret,2)
+        self.assertRaiseRuntimeError(a.secret,'public')
+        self.assertRaiseRuntimeError(a,'public')
 
     def test_opaquerAttrFunc(self):
         a=A(lambda: True)
-        self.assertTrue(a.field())
-        self.assertRaiseRuntimeError(a,'data')
+        self.assertTrue(a.secret())
+        self.assertRaiseRuntimeError(a,'public')
         self.assertRaiseRuntimeError(a,'thisFieldDoesNotExist')
+
+class TestDeny_insecure_attributes(unittest.TestCase):
+    def test_ifdefaultisFalse(self):
+        b=B(2)
+        self.assertRaiseRuntimeError(b,'__dict__')
+    def test_ifdefaultisTrue(self):
+        a=A(2)
+        self.assertRaiseRuntimeError(a,'__dict__')
 
 class TestSubtypeObject(unittest.TestCase):
     def test_opaquer(self):
         b=B(2)
-        self.assertEqual(b.field,2)
-        self.assertRaiseRuntimeError(b,'data')
+        self.assertEqual(b.secret,2)
+        self.assertRaiseRuntimeError(b,'public')
+
+class TestExtendingClassSupport(unittest.TestCase):
+    def test_extendAndAccessClassAttributes(self):
+        C.newsecret=3
+        self.assertEqual(C.newsecret,3)
+
+    def test_extend(self):
+        C.newsecret=3
+        c=C(2)
+        self.assertEqual(c.newsecret,3)
+        self.assertEqual(c.secret,2)
+        self.assertRaiseRuntimeError(c,'public')
 
 class TestSubtypeObjectInstance(unittest.TestCase):
     def test_opaquer(self):
         c=C(2)
-        self.assertEqual(c.field,2)
-        self.assertRaiseRuntimeError(c,'data')
-
+        self.assertEqual(c.secret,2)
+        self.assertRaiseRuntimeError(c,'public')
 
 from opaque import applyPolicy
 import io

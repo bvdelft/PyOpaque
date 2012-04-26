@@ -419,8 +419,7 @@ PyObject * EOGetAttrS(PyObject * obj, PyObject *args) {
 
 static PyMethodDef EOMethods[] = 
 {
-	{"miauw",mm,METH_VARARGS,"DAS sd sdjkf !!!"} ,
-	{"__getattr__",EOGetAttrS,METH_VARARGS,"DAS sd sdjkf !!!"} ,
+	{"__getattr__",EOGetAttrS,METH_VARARGS,NULL} ,
 	{NULL, NULL, 0, NULL} 
 } ;
 

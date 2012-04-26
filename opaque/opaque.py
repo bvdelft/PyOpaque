@@ -2,16 +2,16 @@ import cOpaque
 
 class opaque(object):
     def __init__(self, pubargs, privargs, default):
-        self.pubarg = pubargs
-        self.privarg = privargs
+        self.privarg = [ j for j in privargs ]
+        self.pubarg = [ j for j in pubargs ]
         self.default = default
 
     def __call__(self, klass):
-        return cOpaque.makeOpaque(klass, self.pubarg, self.privarg , self.default )
+        self.private_attr=filter(lambda x: x[0]=='_',dir(klass)) #some of them could be dangerous, like __dict__
+        return cOpaque.makeOpaque(klass, self.pubarg, self.privarg+self.private_attr , self.default )
 
 def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
     import ConfigParser
-    #cOpaque.enableDebug()
     config = ConfigParser.RawConfigParser(allow_no_value=True)
 
     if type(cfgFileName)==str: config.read(cfgFileName)
@@ -25,5 +25,5 @@ def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
             if attribute == 'default-public' : default=True
         if property == 'private': toPrivate.append(attribute)
         if property == 'public' :  toPublic.append(attribute)
-    classToEncapsulate=cOpaque.makeOpaque(classToEncapsulate,toPublic,toPrivate,default )
+    classToEncapsulate=opaque(toPublic,toPrivate,default )(classToEncapsulate)
     return classToEncapsulate
