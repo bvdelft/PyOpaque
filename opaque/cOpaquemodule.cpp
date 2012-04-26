@@ -424,6 +424,18 @@ static PyMethodDef EOMethods[] =
 	{NULL, NULL, 0, NULL} 
 } ;
 
+static PyObject * EORepr(PyObject * obj)
+{
+    PyObject * r = EOGetAttr(obj, "__repr__");
+    return PyObject_CallObject(r, NULL);
+}
+
+static PyObject * EOStr(PyObject * obj)
+{
+    PyObject * s = EOGetAttr(obj, "__str__");
+    return PyObject_CallObject(s, NULL);
+}
+
 
 /**
 * Constructs the EncapsulatedType. 
@@ -451,6 +463,8 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	                             Py_TPFLAGS_BASETYPE   |
 								 Py_TPFLAGS_CHECKTYPES ;
 	encapsulatedType->tp_doc = NULL;
+	encapsulatedType->tp_repr = EORepr;
+	encapsulatedType->tp_str = EOStr;
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
