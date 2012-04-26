@@ -425,14 +425,12 @@ static PyMethodDef EOMethods[] =
 
 static PyObject * EORepr(PyObject * obj)
 {
-    PyObject * r = EOGetAttr(obj,(char *) "__repr__");
-    return PyObject_CallObject(r, NULL);
+    return PyObject_Repr(((EncapsulatedObject*)obj)->objPointer);
 }
 
 static PyObject * EOStr(PyObject * obj)
 {
-    PyObject * s = EOGetAttr(obj, (char *) "__str__");
-    return PyObject_CallObject(s, NULL);
+    return PyObject_Str(((EncapsulatedObject*)obj)->objPointer);
 }
 
 
