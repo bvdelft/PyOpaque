@@ -33,3 +33,9 @@ try:
 	fileWriteCap("Write 11?\n")
 except Exception:
 	print "Error caught: trying to write too many lines"
+	
+from exampleCapability import fileWriteCap
+try:
+	fileWriteCap("Trying to cheat\n")
+except Exception:
+	print "Error caught: No cheating"
