@@ -47,7 +47,7 @@ struct strPtrLess {
 /**
 * Convert a python object representing a list of strings to a set in C
 **/
-static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset) {
+static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char * name) {
 
     int numLines = PyList_Size(list);
 	if (numLines < 0)
@@ -72,7 +72,9 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset) {
 			
 		char * attr = PyString_AsString(item);
 		
-		debug("DEBUG: Adding to list: ");
+		debug("DEBUG: Adding to ");
+		debug(name);
+		debug(": ");
 		debug(attr);
 		debug("\n");
 			
@@ -123,7 +125,7 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 
 	debug("DEBUG: Adding blacklist\n");
 	
-	if (!argToCSet(blacklist, &ImportBlacklist))
+	if (!argToCSet(blacklist, &ImportBlacklist, "blacklist"))
     	return NULL;
 	
 	Py_INCREF(Py_None);
@@ -322,7 +324,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 
 static PyObject * EOCall(PyObject * self, PyObject *args, PyObject *other)
 {
-	PyObject * cmethod = EOGetAttr(self, "__call__");
+	PyObject * cmethod = EOGetAttr(self, (char *) "__call__");
 	if (cmethod == NULL)
 		return NULL;
 		
@@ -600,7 +602,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 
 	set<char*, strPtrLess> publicAttributes;
 	
-	if (!argToCSet(publicAttrs, &publicAttributes))
+	if (!argToCSet(publicAttrs, &publicAttributes,"public"))
     	return NULL;
 	
 	
@@ -611,7 +613,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	
 	set<char*, strPtrLess> privateAttributes;
 	
-	if (!argToCSet(privateAttrs, &privateAttributes))
+	if (!argToCSet(privateAttrs, &privateAttributes,"private"))
     	return NULL;
 	
 	////
