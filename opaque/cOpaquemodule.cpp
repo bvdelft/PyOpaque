@@ -104,6 +104,8 @@ PyObject * BUILTIN_IMPORT;
 // List of module names that cannot be imported (e.g. sys, gc)
 set<char*, strPtrLess> ImportBlacklist;
 
+bool UNSAFE_IMPORT = false;
+
 /**
 * Store the function and the blacklist
 **/
@@ -133,6 +135,9 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 		
 }
 
+
+
+
 /**
 * Wrapped import
 **/
@@ -150,12 +155,14 @@ PyObject * doImport(PyObject * me, PyObject *args)
     
     if (BUILTIN_IMPORT == NULL)
     {
+    	if (UNSAFE_IMPORT)
+    		return PyImport_ImportModule(name);
         (void) PyErr_Format(PyExc_RuntimeError, 
                 "__builtin__.__import__ not yet encapsulated");
 		return NULL;
     }
     
-    if (ImportBlacklist.count(name) > 0) 
+    if (!UNSAFE_IMPORT && ImportBlacklist.count(name) > 0) 
 	{
         (void) PyErr_Format(PyExc_RuntimeError, 
                 "Illegal import (%s)",name);
@@ -522,17 +529,20 @@ static char * getObjectName(PyObject * obj) {
 
 // Helper function, returns pointer to module
 static PyObject * getObjectModule(PyObject * obj) {
+
+	debug("Getting object module\n");
 	
 	if (! PyObject_HasAttrString(obj, "__module__"))
 		return NULL;
 	PyObject * moduleattr = PyObject_GetAttrString(obj, "__module__");
-
+	UNSAFE_IMPORT = true;
 	PyObject * modules = PyObject_GetAttrString(PyImport_ImportModule("sys"), "modules");
+	UNSAFE_IMPORT = false;
 	PyObject * args = PyTuple_New(1);
-
 	Py_XINCREF(moduleattr);
 	PyTuple_SetItem(args, 0, moduleattr);
 
+	debug("Returning object module\n");
 	
 	return PyObject_Call(PyObject_GetAttrString(modules, "get"), args, NULL);
 }
@@ -632,7 +642,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
 	                   privateAttributes, defPol);
 	                   
-	                   
+	debug("DEBUG: Created\n");              
 	                   
 	return encapType_init(getObjectModule(target), name, targetClass);
 }

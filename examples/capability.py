@@ -1,6 +1,4 @@
-from opaque import opaque,cOpaque
-
-cOpaque.enableDebug()
+from opaque import opaque
 
 @opaque(['__call__'],['action','limitations'],True)
 class Capability(object):
@@ -10,35 +8,14 @@ class Capability(object):
 
     def __call__(self, *args, **kargs):
         for l in self.limitations:
-            if not l(*args, **kargs): raise Exception('Permission denied to practise this capabily.')
+            if not l(*args, **kargs): 
+            	raise Exception('Permission denied to exercise this capability.')
         self.action(*args,**kargs)
 
     def add_limitation(self,limitation):
-        return Capability(self.action,self.limitations+[limitation])
+    	# It is important that the new limitation is added at the front, so
+    	# that it is checked first (e.g. when the new limitation returns False,
+    	# the other limitations are not called and do not change their state
+    	# incorrectly.)
+        return Capability(self.action, [limitation] + self.limitations)
 
-class WriteCapability(Capability):
-    def __init__(self,fd):
-        super(WriteCapability, self).__init__(fd.write)
-
-
-class CloseCapability(Capability):
-    def __init__(self,fd):
-        super(CloseCapability, self).__init__(fd.close)
-
-class CounterLimitation():
-    def __init__(self, max):
-        self.counter=0
-        self.max = max
-    def check(self,*args,**kargs):
-        self.counter+=1
-        return self.counter <= self.max
-
-class Capabilities(): pass
-
-fd = file('/tmp/log.txt','w')
-
-cap=Capabilities()
-cap.write=Capability(fd.write,[CounterLimitation(4).check])
-cap.close=Capability(fd.close)
-
-fd=cap
