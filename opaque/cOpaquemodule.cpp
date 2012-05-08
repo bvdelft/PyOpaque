@@ -320,6 +320,15 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 }
 
+static PyObject * EOCall(PyObject * self, PyObject *args, PyObject *other)
+{
+	PyObject * cmethod = EOGetAttr(self, "__call__");
+	if (cmethod == NULL)
+		return NULL;
+		
+    return PyObject_CallObject(cmethod, args);
+}
+
 /*----------------------------------------------------------------------------*/
 ////// TargetClass /////////////////////////////////////////////////////////////
 
@@ -462,6 +471,8 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	encapsulatedType->tp_doc = NULL;
 	encapsulatedType->tp_repr = EORepr;
 	encapsulatedType->tp_str = EOStr;
+	
+	encapsulatedType->tp_call = EOCall;
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
