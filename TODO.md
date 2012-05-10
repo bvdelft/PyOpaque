@@ -1,8 +1,5 @@
 # TODO
 
- - wrap cOpaque with python
- - Packaging
- - Decorators
  - documentation of the API
  - dir / dict features (docstring)
  - example policies

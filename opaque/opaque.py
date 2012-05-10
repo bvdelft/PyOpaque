@@ -27,3 +27,10 @@ def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
         if property == 'public' :  toPublic.append(attribute)
     classToEncapsulate=opaque(toPublic,toPrivate,default )(classToEncapsulate)
     return classToEncapsulate
+        
+def disableDangerousImports():
+	import __builtin__
+	del __builtin__.file
+	cOpaque.encapImport(__builtin__.__import__, ["gc", "sys", "__builtin__"])
+	__builtin__.__import__ = cOpaque.doImport
+	del __builtin__

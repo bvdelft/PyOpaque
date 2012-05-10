@@ -47,7 +47,7 @@ struct strPtrLess {
 /**
 * Convert a python object representing a list of strings to a set in C
 **/
-static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset) {
+static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char * name) {
 
     int numLines = PyList_Size(list);
 	if (numLines < 0)
@@ -72,7 +72,9 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset) {
 			
 		char * attr = PyString_AsString(item);
 		
-		debug("DEBUG: Adding to list: ");
+		debug("DEBUG: Adding to ");
+		debug(name);
+		debug(": ");
 		debug(attr);
 		debug("\n");
 			
@@ -102,6 +104,8 @@ PyObject * BUILTIN_IMPORT;
 // List of module names that cannot be imported (e.g. sys, gc)
 set<char*, strPtrLess> ImportBlacklist;
 
+bool UNSAFE_IMPORT = false;
+
 /**
 * Store the function and the blacklist
 **/
@@ -123,13 +127,16 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 
 	debug("DEBUG: Adding blacklist\n");
 	
-	if (!argToCSet(blacklist, &ImportBlacklist))
+	if (!argToCSet(blacklist, &ImportBlacklist, "blacklist"))
     	return NULL;
 	
 	Py_INCREF(Py_None);
     return Py_None;
 		
 }
+
+
+
 
 /**
 * Wrapped import
@@ -148,12 +155,14 @@ PyObject * doImport(PyObject * me, PyObject *args)
     
     if (BUILTIN_IMPORT == NULL)
     {
+    	if (UNSAFE_IMPORT)
+    		return PyImport_ImportModule(name);
         (void) PyErr_Format(PyExc_RuntimeError, 
                 "__builtin__.__import__ not yet encapsulated");
 		return NULL;
     }
     
-    if (ImportBlacklist.count(name) > 0) 
+    if (!UNSAFE_IMPORT && ImportBlacklist.count(name) > 0) 
 	{
         (void) PyErr_Format(PyExc_RuntimeError, 
                 "Illegal import (%s)",name);
@@ -320,6 +329,15 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	
 }
 
+static PyObject * EOCall(PyObject * self, PyObject *args, PyObject *other)
+{
+	PyObject * cmethod = EOGetAttr(self, (char *) "__call__");
+	if (cmethod == NULL)
+		return NULL;
+		
+    return PyObject_CallObject(cmethod, args);
+}
+
 /*----------------------------------------------------------------------------*/
 ////// TargetClass /////////////////////////////////////////////////////////////
 
@@ -462,6 +480,8 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	encapsulatedType->tp_doc = NULL;
 	encapsulatedType->tp_repr = EORepr;
 	encapsulatedType->tp_str = EOStr;
+	
+	encapsulatedType->tp_call = EOCall;
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
@@ -509,17 +529,20 @@ static char * getObjectName(PyObject * obj) {
 
 // Helper function, returns pointer to module
 static PyObject * getObjectModule(PyObject * obj) {
+
+	debug("Getting object module\n");
 	
 	if (! PyObject_HasAttrString(obj, "__module__"))
 		return NULL;
 	PyObject * moduleattr = PyObject_GetAttrString(obj, "__module__");
-
+	UNSAFE_IMPORT = true;
 	PyObject * modules = PyObject_GetAttrString(PyImport_ImportModule("sys"), "modules");
+	UNSAFE_IMPORT = false;
 	PyObject * args = PyTuple_New(1);
-
 	Py_XINCREF(moduleattr);
 	PyTuple_SetItem(args, 0, moduleattr);
 
+	debug("Returning object module\n");
 	
 	return PyObject_Call(PyObject_GetAttrString(modules, "get"), args, NULL);
 }
@@ -589,7 +612,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 
 	set<char*, strPtrLess> publicAttributes;
 	
-	if (!argToCSet(publicAttrs, &publicAttributes))
+	if (!argToCSet(publicAttrs, &publicAttributes,"public"))
     	return NULL;
 	
 	
@@ -600,7 +623,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	
 	set<char*, strPtrLess> privateAttributes;
 	
-	if (!argToCSet(privateAttrs, &privateAttributes))
+	if (!argToCSet(privateAttrs, &privateAttributes,"private"))
     	return NULL;
 	
 	////
@@ -619,7 +642,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
 	                   privateAttributes, defPol);
 	                   
-	                   
+	debug("DEBUG: Created\n");              
 	                   
 	return encapType_init(getObjectModule(target), name, targetClass);
 }
