@@ -1,3 +1,9 @@
+$ cd /tmp
+$ git clone https://github.com/bvdelft/PyOpaque.git
+$ cd PyOpaque
+$ python setup.py install_examples
+$ cd examples
+
 //////////
 // Demo 1
 //////////
@@ -14,7 +20,7 @@ In [4]: card
 Out[5]: 9
 
 In [5]: print jack.deck
-[34, 50, 14, 44, 8, 29, 25, 40, 27, 31, 17, 23, 2, 21, 4, 42, 28, 22, 6, 37, 20, 24, 13, 15, 0, 48, 12, 1, 33, 35, 39, 51, 19, 5, 38, 47, 43, 49, 41, 45, 11, 36, 32, 7, 30, 16, 26, 18, 10, 46, 3]
+[34, 50, 14, 44, ... 32, 7, 30, 16, 26, 18, 10, 46, 3]
 
 In [6]: card = jack.deck.pop()
 
@@ -25,7 +31,192 @@ Out[7]: 3
 // Demo 2
 //////////
 
-$ ipython
+In [8]: from opaque import cOpaque
 
-In [1]: from croupier import Croupier
+In [9]: Croupier
+Out[9]: <class 'croupier.Croupier'>
+
+In [10]: Croupier = cOpaque.makeOpaque(Croupier,["drawCard"],["deck"],False)
+
+In [11]: Croupier
+Out[11]: <type 'Croupier'>
+
+In [12]: jack
+Out[12]: <croupier.Croupier object at 0x8b3e78c>
+
+In [13]: jack = Croupier()
+
+In [14]: jack
+Out[14]: <croupier.Croupier object at 0x8b3ef2c>
+
+In [15]: card = jack.drawCard()
+
+In [16]: card
+Out[16]: 46
+
+In [17]: print jack.deck
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+
+/tmp/PyOpaque/examples/<ipython console> in <module>()
+
+RuntimeError: The policy of attribute 'deck' of 'Croupier' object disallows access
+
+In [18]: card = jack.deck.pop()
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+
+/tmp/PyOpaque/examples/<ipython console> in <module>()
+
+RuntimeError: The policy of attribute 'deck' of 'Croupier' object disallows access
+
+In [19]: card
+Out[19]: 46
+
+///////////////
+/// Demo 3 - Dictionary
+///////////////
+
+In [20]:
+Do you really want to exit ([y]/n)?
+$ ipython croupier.py
+
+In [1]: from opaque import cOpaque
+
+In [2]: Croupier = cOpaque.makeOpaque(Croupier,["drawCard","__dict__"],["deck"],False)
+
+In [3]: jack = Croupier()
+
+In [4]: jack.deck
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+
+/tmp/PyOpaque/examples/<ipython console> in <module>()
+
+RuntimeError: The policy of attribute 'deck' of 'Croupier' object disallows access
+
+In [5]: jack.__dict__
+Out[5]:
+{'deck': [6,
+          16,
+         ...
+          4,
+          2]}
+
+In [6]: jack.__dict__['deck']
+Out[6]:
+[6,
+ 16,
+....
+ 4,
+ 2]
+
+///////////////
+/// Demo 3 - Callable attributes
+///////////////
+
+In [7]:
+Do you really want to exit ([y]/n)?
+
+$ ipython croupier.py
+
+In [1]: jack = Croupier()
+
+In [2]: jack.drawCard
+Out[2]: <bound method Croupier.drawCard of <__main__.Croupier object at 0x903382c>>
+
+In [3]: jack.drawCard.__self__
+Out[3]: <__main__.Croupier object at 0x903382c>
+
+In [4]: jack.drawCard.__self__.deck
+Out[4]:
+[21,
+ 4,
+ 31,
+ ...
+ 29]
+
+/// Continuing with protection (encap attribute)\ right away?
+
+In [5]: from opaque import cOpaque
+
+In [6]: Croupier = cOpaque.makeOpaque(Croupier,["drawCard"],["deck"],False)       
+In [7]: jack = Croupier()
+
+In [8]: jack.drawCard
+Out[8]: <EncapsulatedAttribute object at 0xb788c230>
+
+In [9]: jack.drawCard.__self__
+---------------------------------------------------------------------------
+SystemError                               Traceback (most recent call last)
+
+/tmp/PyOpaque/examples/<ipython console> in <module>()
+
+SystemError: error return without exception set 
+/// BART // Todo: fix this message!
+
+In [10]: jack.drawCard()
+Out[10]: 9
+
+//////////
+/// Memory Inspection
+//////////
+
+$ ipython croupier.py
+
+In [1]: from opaque import cOpaque
+
+In [2]: Croupier = cOpaque.makeOpaque(Croupier,["drawCard"],["deck"],False)
+
+In [3]: import gc
+
+// Note: small cheat here, to save time
+In [4]: o_a = gc.get_objects()
+
+In [5]: jack = Croupier()
+
+In [6]: o_b = gc.get_objects()
+
+In [7]: for o in o_a :
+   ...:     o_b.remove(o)
+   ...:
+   ...:
+   
+In [8]: o_b[5]
+Out[8]:
+{'deck': [9,
+          8,
+          34,
+          ...
+          41,
+          33,
+          38]}
+
+
+In [9]: jack.drawCard()
+Out[9]: 38
+
+In [10]: o_b[5]
+Out[10]:
+{'deck': [9,
+          8,
+          ...
+          7,
+          41,
+          33]}
+
+
+In [11]: jack.deck
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+
+/tmp/PyOpaque/examples/<ipython console> in <module>()
+
+RuntimeError: The policy of attribute 'deck' of 'Croupier' object disallows access
+
+In [12]: o_b[5]['deck'] = ["Muhahah"]
+
+In [13]: jack.drawCard()
+Out[13]: 'Muhahah'
+
 
