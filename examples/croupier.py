@@ -9,4 +9,4 @@ class Croupier(object):
 	def drawCard(self):
 		return self.deck.pop()
 
-jack=CardDeck()
+

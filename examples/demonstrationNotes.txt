@@ -1,0 +1,31 @@
+//////////
+// Demo 1
+//////////
+
+$ ipython
+
+In [1]: from croupier import Croupier
+
+In [2]: jack = Croupier()
+
+In [3]: card = jack.drawCard()
+
+In [4]: card
+Out[5]: 9
+
+In [5]: print jack.deck
+[34, 50, 14, 44, 8, 29, 25, 40, 27, 31, 17, 23, 2, 21, 4, 42, 28, 22, 6, 37, 20, 24, 13, 15, 0, 48, 12, 1, 33, 35, 39, 51, 19, 5, 38, 47, 43, 49, 41, 45, 11, 36, 32, 7, 30, 16, 26, 18, 10, 46, 3]
+
+In [6]: card = jack.deck.pop()
+
+In [7]: card
+Out[7]: 3
+
+//////////
+// Demo 2
+//////////
+
+$ ipython
+
+In [1]: from croupier import Croupier
+
