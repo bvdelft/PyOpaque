@@ -22,10 +22,10 @@ Out[5]: 9
 In [5]: print jack.deck
 [34, 50, 14, 44, ... 32, 7, 30, 16, 26, 18, 10, 46, 3]
 
-In [6]: card = jack.deck.pop()
+In [6]: jack.deck = [-1, -2]
 
-In [7]: card
-Out[7]: 3
+In [7]: jack.drawCard()
+Out[7]: -2
 
 //////////
 // Demo 2
@@ -152,8 +152,7 @@ SystemError                               Traceback (most recent call last)
 
 /tmp/PyOpaque/examples/<ipython console> in <module>()
 
-SystemError: error return without exception set 
-/// BART // Todo: fix this message!
+SystemError: ---
 
 In [10]: jack.drawCard()
 Out[10]: 9
@@ -162,49 +161,24 @@ Out[10]: 9
 /// Memory Inspection
 //////////
 
-$ ipython croupier.py
+$ ipython memory.py
+
+In [0]: from croupier import Croupier
 
 In [1]: from opaque import cOpaque
 
 In [2]: Croupier = cOpaque.makeOpaque(Croupier,["drawCard"],["deck"],False)
 
-In [3]: import gc
+In [3]: jack = Croupier()
 
 // Note: small cheat here, to save time
-In [4]: o_a = gc.get_objects()
+In [4]: import gc
 
-In [5]: jack = Croupier()
+In [5]: allObjects = gc.get_objects
 
-In [6]: o_b = gc.get_objects()
+In [6]: realJack = search('deck',allObjects)
 
-In [7]: for o in o_a :
-   ...:     o_b.remove(o)
-   ...:
-   ...:
-   
-In [8]: o_b[5]
-Out[8]:
-{'deck': [9,
-          8,
-          34,
-          ...
-          41,
-          33,
-          38]}
-
-
-In [9]: jack.drawCard()
-Out[9]: 38
-
-In [10]: o_b[5]
-Out[10]:
-{'deck': [9,
-          8,
-          ...
-          7,
-          41,
-          33]}
-
+In [6]: print realJack
 
 In [11]: jack.deck
 ---------------------------------------------------------------------------
@@ -214,7 +188,7 @@ RuntimeError                              Traceback (most recent call last)
 
 RuntimeError: The policy of attribute 'deck' of 'Croupier' object disallows access
 
-In [12]: o_b[5]['deck'] = ["Muhahah"]
+In [12]: realJack['deck'] = ["Muhahah"]
 
 In [13]: jack.drawCard()
 Out[13]: 'Muhahah'
