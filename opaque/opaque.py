@@ -1,7 +1,7 @@
 import cOpaque
 
 class opaque(object):
-    def __init__(self, pubargs, privargs, default):
+    def __init__(self, pubargs=[], privargs=[], default=True):
         self.privarg = [ j for j in privargs ]
         self.pubarg = [ j for j in pubargs ]
         self.default = default

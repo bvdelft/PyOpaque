@@ -1,8 +1,17 @@
+"""PyOpaque: Encapsulate Python objects to make them opaque (private attribute support)
+
+PyOpaque is a way to have private attributes in Python objects.
+By wrapping an object and expose it behind a C module, PyOpaque is able to
+protect attributes.
+"""
+
 from setuptools import setup, Extension, Command
 from distutils.util import get_platform
 from distutils.dir_util import copy_tree
 import os
 import sys
+
+doclines = __doc__.split("\n")
 
 class examplesCommand(Command):
     description = "install the library in the examples directory"
@@ -30,13 +39,14 @@ class examplesCommand(Command):
 
 setup (name = 'PyOpaque',
        version = '0.0.2',
-       description = 'Encapsulate python objects to make them opaque',
-       author='Bart van Delf, Luciano Bello',
+       description = doclines[0],
+       author='Bart van Delft, Luciano Bello',
        author_email='<vandeba -at- chalmers.se>, <bello -at- chalmers.se>',
        url='https://github.com/bvdelft/PyOpaque',
        license='MIT License',
        ext_modules = [Extension('opaque.cOpaque', sources = ['opaque/cOpaquemodule.cpp']) ],
        packages = ['opaque'],
        test_suite='tests',
-       cmdclass={'install_examples': examplesCommand})
-
+       cmdclass={'install_examples': examplesCommand},
+       long_description = "\n".join(doclines[2:]),
+       )
