@@ -1,5 +1,18 @@
-from exampleCapability import fileWriteCap
 from limitations import SizeLimitation
+from exampleCapability import fileWriteCap
+
+# fileWriteCap.limitations = []
+
+fileWriteCap("Write 1\n")
+fileWriteCap("Write 2\n")
+fileWriteCap("Write 3\n")
+fileWriteCap("Write 4\n")
+fileWriteCap("Write 5\n")
+fileWriteCap("Write 6\n")
+
+'''
+
+fileWriteCap.limitations = []
 
 # We are allowed to write 10 times in total
 
@@ -9,7 +22,7 @@ fileWriteCap("Write 2\n")
 fileWriteCap("Write 3\n")
 
 # Delegating:
-delegatedWriteCap = fileWriteCap.add_limitation(SizeLimitation(10).check)
+delegatedWriteCap = fileWriteCap.add_limitation(SizeLimitation(8).check)
 
 delegatedWriteCap("Write 4\n")
 
@@ -34,6 +47,8 @@ try:
 except Exception:
 	print "Error caught: trying to write too many lines"
 	
+
+# Similar with import exampleCapability
 from exampleCapability import fileWriteCap
 try:
 	fileWriteCap("Trying to cheat\n")

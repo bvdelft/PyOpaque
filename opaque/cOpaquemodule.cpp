@@ -192,6 +192,8 @@ static void encapsulatedAttribute_dealloc(PyObject* self)
 **/
 static PyObject * EAGetAttr(PyObject* self, char * attr) 
 {
+	(void) PyErr_Format(PyExc_RuntimeError, 
+                "This is an encapsulated callable attribute - can only be called.");
 	return NULL;
 }
 
