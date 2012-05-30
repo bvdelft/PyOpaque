@@ -483,7 +483,7 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	encapsulatedType->tp_repr = EORepr;
 	encapsulatedType->tp_str = EOStr;
 	
-	encapsulatedType->tp_call = EOCall;
+	// encapsulatedType->tp_call = EOCall;
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
