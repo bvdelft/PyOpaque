@@ -19,8 +19,25 @@ def opaquer(aClassObject,aField):
 A=opaquer(A,'public')
 B=opaque([ 'public' ], [ 'secret' ] , True )(B)
 
+
 class C(B):
 	pass
+
+class D(object):
+	def __init__(self,q):
+		self.secret=q
+		self.public=q
+	def __call__(self):
+		return self.secret
+
+D=opaque([ 'public' ], [ 'secret' ] , True )(D)
+
+class E(object):
+	def __init__(self,q):
+		self.secret=q
+		self.public=q
+	def __call__(self):
+		return self.secret
 
 def assertRuntimeError(self,o,secret):
      with self.assertRaises(RuntimeError) as cm:
@@ -47,6 +64,36 @@ class TestSimpleAccess(unittest.TestCase):
         self.assertRaiseRuntimeError(a,'secret')
         self.assertRaiseRuntimeError(a,'thisFieldDoesNotExist')
 
+class TestCallableIssues(unittest.TestCase):
+    def test_instanceCallable(self):
+        a=A(1)
+        d=D(1)
+        e=E(1)
+        self.assertFalse(callable(a))
+        self.assertTrue(callable(d))
+        self.assertTrue(callable(e))
+
+    def test_nestedInstance(self):
+        a=A(1)
+        d=D(a)
+        e=E(a)
+        self.assertTrue(callable(d.public))
+        self.assertTrue(callable(e.public))
+        
+    def test_nestedInstance2(self):
+        e=E(3)
+        d=D(e)
+        self.assertTrue(callable(d.public))
+        self.assertEqual(d.public(), 3)
+        self.assertEqual(d.public.public, 3)
+    
+    def test_nestedInstance3(self):
+        d=D(3)
+        e=E(d)        
+        self.assertTrue(callable(e.public))
+        self.assertEqual(e.public(), 3)
+        self.assertEqual(e.public.public, 3)
+        
 class TestDeny_insecure_attributes(unittest.TestCase):
     def test_ifdefaultisFalse(self):
         b=B(2)
