@@ -167,5 +167,8 @@ deposit =public
         self.assertTrue(callable(self.instance.withdraw))
         self.assertTrue(callable(self.instance.deposit))
 
+    def testExtendClass(self):
+       self.account1.extraClass='extra'
+
 if __name__ == '__main__':
     unittest.main()
