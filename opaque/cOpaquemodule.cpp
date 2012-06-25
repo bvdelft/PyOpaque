@@ -484,7 +484,7 @@ EncapsulatedType* makeEncapsulatedType(char * name, bool calb)
 	encapsulatedType->tp_str = EOStr;
 	
 	if(calb) {
-	    printf("%s is callable!!\n", name);
+	    debug(name); debug(" is callable!!\n");
     	encapsulatedType->tp_call = EOCall;
     }
 
