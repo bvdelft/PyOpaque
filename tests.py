@@ -30,7 +30,7 @@ class D(object):
 	def __call__(self):
 		return self.secret
 
-D=opaque([ 'public' ], [ 'secret' ] , True )(D)
+D=opaque([ 'public'], [ 'secret' ] , True )(D)
 
 class E(object):
 	def __init__(self,q):
@@ -93,6 +93,15 @@ class TestCallableIssues(unittest.TestCase):
         self.assertTrue(callable(e.public))
         self.assertEqual(e.public(), 3)
         self.assertEqual(e.public.public, 3)
+        # Gives segfault. Depends on previous assertions in this test...
+        # self.assertRaiseRuntimeError(e.public,'__self__')
+    
+    def test_nestedInstance4(self):
+        d=D(3)
+        e=E(d)    
+        self.assertRaiseRuntimeError(e.public.__call__,'__self__')
+        # Gives no segfault:
+        self.assertRaiseRuntimeError(e.public,'__self__')
         
 class TestDeny_insecure_attributes(unittest.TestCase):
     def test_ifdefaultisFalse(self):
