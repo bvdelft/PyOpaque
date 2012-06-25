@@ -209,5 +209,34 @@ deposit =public
        self.account1.extra='extra'
        self.assertEqual(self.account1.extra,'extra')
 
+class TestConfig2(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        sample_config = """
+[account]
+default-public
+balance =private
+history =private
+owner   = public
+withdraw=public
+deposit =public
+"""
+        self.account1=applyPolicy(account,io.BytesIO(sample_config))
+        self.instance=self.account1()
+
+    def testDeny(self):
+        self.assertRaiseRuntimeError(self.instance,'balance')
+        self.assertRaiseRuntimeError(self.instance,'history')
+
+    def testAllow(self):
+        self.assertEqual(self.instance.owner,'Bart')
+        self.assertTrue(callable(self.instance.withdraw))
+        self.assertTrue(callable(self.instance.deposit))
+
+    def testExtendClass(self):
+       self.account1.extra='extra'
+       self.assertEqual(self.account1.extra,'extra')
+
+
 if __name__ == '__main__':
     unittest.main()
