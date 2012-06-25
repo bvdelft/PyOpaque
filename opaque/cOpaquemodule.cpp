@@ -1,6 +1,6 @@
 #include <Python.h>
 #include <set>
-#include <typeinfo>
+// #include <typeinfo>
 using namespace std;
 
 /*----------------------------------------------------------------------------*/
@@ -628,9 +628,9 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	
 	if (!argToCSet(publicAttrs, &publicAttributes,"public"))
     	return NULL;
-	
+
 	if (PyCallable_Check(target))
-    	publicAttributes.insert("__call__");
+    	publicAttributes.insert((char *)"__call__");
 	
 	////
 	// Private attributes
