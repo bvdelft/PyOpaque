@@ -98,9 +98,10 @@ class TestCallableIssues(unittest.TestCase):
     def test_nestedInstance4(self):
         d=D(3)
         e=E(d)    
-        self.assertRaiseRuntimeError(e.public.__call__,'__self__')
-        # Gives no segfault:
-        self.assertRaiseRuntimeError(e.public,'__self__')
+        # .__self__ points back to e.public, which is already an opaque object.
+        # Hence .__self__ can be accessed (not dangerous), but not the field
+        # secret.
+        self.assertRaiseRuntimeError(e.public.__call__.__self__,'secret')
         
 class TestDeny_insecure_attributes(unittest.TestCase):
     def test_ifdefaultisFalse(self):
