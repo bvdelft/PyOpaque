@@ -32,7 +32,7 @@ def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
             if attribute == 'disallow-extension' : allowExtension=False
         if property == 'private': toPrivate.append(attribute)
         if property == 'public' :  toPublic.append(attribute)
-    classToEncapsulate=opaque(toPublic,toPrivate,default )(classToEncapsulate)
+    classToEncapsulate=opaque(toPublic,toPrivate,default,allowExtension)(classToEncapsulate)
     return classToEncapsulate
         
 def disableDangerousImports():

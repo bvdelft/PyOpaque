@@ -206,17 +206,21 @@ deposit =public
         self.assertTrue(callable(self.instance.deposit))
 
     def testExtendClass(self):
-       self.account1.extra='extra'
-       self.assertEqual(self.account1.extra,'extra')
+       self.account1.extra1='extra'
+       self.assertEqual(self.account1.extra1,'extra')
+       self.assertEqual(self.instance.extra1,'extra')
+
+    def testExtendInstance(self):
+       self.instance.extra2='extra'
+       self.assertEqual(self.instance.extra2,'extra')
 
 class TestConfig2(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         sample_config = """
 [account]
-default-public
-balance =private
-history =private
+default-private
+disallow-extension
 owner   = public
 withdraw=public
 deposit =public
@@ -234,9 +238,12 @@ deposit =public
         self.assertTrue(callable(self.instance.deposit))
 
     def testExtendClass(self):
-       self.account1.extra='extra'
-       self.assertEqual(self.account1.extra,'extra')
+       with self.assertRaises(TypeError):
+           self.account1.extra1='extra'
 
+    def testExtendInstance(self):
+       with self.assertRaises(AttributeError):
+           self.instance.extra2='extra'
 
 if __name__ == '__main__':
     unittest.main()
