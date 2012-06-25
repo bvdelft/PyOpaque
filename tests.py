@@ -73,10 +73,9 @@ class TestCallableIssues(unittest.TestCase):
         self.assertTrue(callable(d))
         self.assertTrue(callable(e))
 
-    def test_nestedInstance(self):
-        a=A(1)
-        d=D(a)
-        e=E(a)
+    def test_nestedInstance1(self):
+        d=D(A)
+        e=E(A)
         self.assertTrue(callable(d.public))
         self.assertTrue(callable(e.public))
         
