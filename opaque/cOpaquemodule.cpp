@@ -248,7 +248,7 @@ static PyTypeObject* EncapsulatedAttributeType = makeEncapsulatedAttribute();
 static PyObject* encapAttribute_init(PyObject* att) 
 {
 	
-	if (PyCallable_Check(att)) {
+	if (PyObject_HasAttrString(att,"__self__") && PyCallable_Check(att)) {
 		EncapsulatedAttribute* encapAttr;
 		encapAttr = PyObject_NEW(EncapsulatedAttribute, 
 		                              EncapsulatedAttributeType);
