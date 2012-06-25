@@ -1,9 +1,15 @@
 import cOpaque
 
 class opaque(object):
-    def __init__(self, pubargs=[], privargs=[], default=True, allowExtension=True):
-        self.privarg = [ j for j in privargs ]
-        self.pubarg = [ j for j in pubargs ]
+    def __init__(self, public=[], private=[], default=True, allowExtension=True):
+        '''
+        Class decorator to convert a class in an opaque class.
+        public:  List of attributes/methods that are allow
+        private: List of attributes/methods that are deny
+        default:  Boolean. If an attribute/method is not in the public or private list, is it allow?
+        allowExtension:  The class and instances can be dynamically extended'''
+        self.privarg = [ j for j in private ]
+        self.pubarg = [ j for j in public ]
         self.default = default
         self.allowExtension = allowExtension
 
