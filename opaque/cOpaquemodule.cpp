@@ -457,7 +457,7 @@ static PyObject * EOStr(PyObject * obj)
 /**
 * Constructs the EncapsulatedType. 
 **/
-EncapsulatedType* makeEncapsulatedType(char * name) 
+EncapsulatedType* makeEncapsulatedType(char * name, bool calb) 
 {
 	EncapsulatedType * encapsulatedType = 
 		(EncapsulatedType *)malloc(sizeof(EncapsulatedType));
@@ -483,7 +483,10 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 	encapsulatedType->tp_repr = EORepr;
 	encapsulatedType->tp_str = EOStr;
 	
-	// encapsulatedType->tp_call = EOCall;
+	if(calb) {
+	    printf("%s is callable!!\n", name);
+    	encapsulatedType->tp_call = EOCall;
+    }
 
 	encapsulatedType->tp_dealloc = eEncapsulatedType_dealloc;
 
@@ -502,9 +505,9 @@ EncapsulatedType* makeEncapsulatedType(char * name)
 /**
 * Creates a new EncapsulatedType for the specified target class.
 **/                             
-static PyObject * encapType_init(PyObject * module, char * name, TargetClass* target) 
+static PyObject * encapType_init(PyObject * module, char * name, bool calb, TargetClass* target) 
 {
-    EncapsulatedType* myEncapsulatedType = makeEncapsulatedType(name);
+    EncapsulatedType* myEncapsulatedType = makeEncapsulatedType(name, calb);
 	myEncapsulatedType->target = target;
 	Py_XINCREF(module);
 	Py_XINCREF(myEncapsulatedType);
@@ -527,6 +530,13 @@ static char * getObjectName(PyObject * obj) {
 	char * name = PyString_AsString(nameattr);
 	
 	return name;
+}
+
+static bool isCallable(PyObject * obj) {
+	
+	return PyObject_HasAttrString(obj, "__call__"); // ||
+	       //PyCallable_Check(obj);
+	       
 }
 
 // Helper function, returns pointer to module
@@ -646,7 +656,7 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	                   
 	debug("DEBUG: Created\n");              
 	                   
-	return encapType_init(getObjectModule(target), name, targetClass);
+	return encapType_init(getObjectModule(target), name, isCallable(target), targetClass);
 }
 
 
