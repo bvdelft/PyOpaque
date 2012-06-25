@@ -92,8 +92,8 @@ class TestCallableIssues(unittest.TestCase):
         self.assertTrue(callable(e.public))
         self.assertEqual(e.public(), 3)
         self.assertEqual(e.public.public, 3)
-        # Gives segfault. Depends on previous assertions in this test...
-        # self.assertRaiseRuntimeError(e.public,'__self__')
+        # Should not give segfault :)
+        self.assertFalse(hasattr(e.public,'thisFieldDoesNotExist'))
     
     def test_nestedInstance4(self):
         d=D(3)
