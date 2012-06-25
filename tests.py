@@ -30,7 +30,7 @@ class D(object):
 	def __call__(self):
 		return self.secret
 
-D=opaque([ 'public'], [ 'secret' ] , True )(D)
+D=opaque([ 'public' ], [ 'secret' ] , True )(D)
 
 class E(object):
 	def __init__(self,q):
@@ -104,12 +104,16 @@ class TestCallableIssues(unittest.TestCase):
         self.assertRaiseRuntimeError(e.public.__call__.__self__,'secret')
         
 class TestDeny_insecure_attributes(unittest.TestCase):
-    def test_ifdefaultisFalse(self):
+    def test_ifdefaultisFalse_withextension(self):
         b=B(2)
-        self.assertRaiseRuntimeError(b,'__dict__')
-    def test_ifdefaultisTrue(self):
+        self.assertTrue(hasattr(b,'__dict__')) # because has allow_extension
+        with self.assertRaises(RuntimeError) as cm:
+	   b.__class__.__bases__[0].__getattr__(b,'secret')
+    def test_ifdefaultisTrue_withextension(self):
         a=A(2)
-        self.assertRaiseRuntimeError(a,'__dict__')
+        self.assertTrue(hasattr(a,'__dict__')) # because has allow_extension
+        with self.assertRaises(RuntimeError) as cm:
+	   a.__class__.__bases__[0].__getattr__(a,'secret')
 
 class TestSubtypeObject(unittest.TestCase):
     def test_opaquer(self):
