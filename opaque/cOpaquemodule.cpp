@@ -629,9 +629,8 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 	if (!argToCSet(publicAttrs, &publicAttributes,"public"))
     	return NULL;
 
-    char call[] = "__call__";	
 	if (PyCallable_Check(target))
-    	publicAttributes.insert(call);
+    	publicAttributes.insert((char *)"__call__");
 	
 	////
 	// Private attributes
