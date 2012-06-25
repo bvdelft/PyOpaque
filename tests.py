@@ -14,11 +14,11 @@ class B(object):
         self.public = q
 
 def opaquer(aClassObject,aField):
-    return opaque([ aField ], [] , False )(aClassObject)
+    return opaque([ aField ], [] , default=False, allowExtension=True )(aClassObject)
 
-A=opaquer(A,'public')
-B=opaque([ 'public' ], [ 'secret' ] , True )(B)
+A = opaquer(A,'public')
 
+B = opaque([ 'public' ], [ 'secret' ] , True )(B)
 
 class C(B):
 	pass
@@ -30,7 +30,7 @@ class D(object):
 	def __call__(self):
 		return self.secret
 
-D=opaque([ 'public'], [ 'secret' ] , True )(D)
+D=opaque([ 'public' ], [ 'secret' ] , True )(D)
 
 class E(object):
 	def __init__(self,q):
@@ -104,12 +104,41 @@ class TestCallableIssues(unittest.TestCase):
         self.assertRaiseRuntimeError(e.public.__call__.__self__,'secret')
         
 class TestDeny_insecure_attributes(unittest.TestCase):
-    def test_ifdefaultisFalse(self):
-        b=B(2)
-        self.assertRaiseRuntimeError(b,'__dict__')
-    def test_ifdefaultisTrue(self):
-        a=A(2)
-        self.assertRaiseRuntimeError(a,'__dict__')
+    def initClass(self):
+         class F(object):
+	    def __init__(self,q):
+		self.secret=q
+		self.public=q
+         return F
+
+    def test_ifdefaultisFalse_withextension(self):
+        f=opaque([ 'public' ], [ ] , default=False, allowExtension=True )(self.initClass())(2)
+        self.assertTrue(hasattr(f,'__dict__')) # because has allow_extension
+        self.assertRaiseRuntimeError(f,'secret')
+        self.assertTrue(hasattr(f,'public'))
+        with self.assertRaises(RuntimeError) as cm:
+	   f.__class__.__bases__[0].__getattr__(f,'secret')
+
+    def test_ifdefaultisTrue_withextension(self):
+        f=opaque([ ], [ 'secret' ] , default=True, allowExtension=True )(self.initClass())(2)
+        self.assertTrue(hasattr(f,'__dict__')) # because has allow_extension
+        self.assertTrue(hasattr(f,'public'))
+        with self.assertRaises(RuntimeError) as cm:
+	   f.__class__.__bases__[0].__getattr__(f,'secret')
+
+    def test_ifdefaultisTrue_withOUTextension(self):
+        f=opaque([ ], [ 'secret' ] , default=True, allowExtension=False )(self.initClass())(2)
+        self.assertRaiseRuntimeError(f,'__dict__') 
+        self.assertTrue(hasattr(f,'public'))
+        with self.assertRaises(RuntimeError) as cm:
+	   f.__class__.__bases__[0].__getattr__(f,'secret')
+
+    def test_ifdefaultisFalse_withOUTextension(self):
+        f=opaque([ 'public' ], [ ] , default=False, allowExtension=False )(self.initClass())(2)
+        self.assertRaiseRuntimeError(f,'__dict__') 
+        self.assertTrue(hasattr(f,'public'))
+        with self.assertRaises(RuntimeError) as cm:
+	   f.__class__.__bases__[0].__getattr__(f,'secret')
 
 class TestSubtypeObject(unittest.TestCase):
     def test_opaquer(self):
