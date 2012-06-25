@@ -1,22 +1,62 @@
+// TODO
+// - check for Py_XINCREF and place appropriate Py_XDECREF
+// - check for possible segfaults
+
+
+/*******************************************************************************
+
+                        PyOpaque version 0.0.2
+
+
+Apologies for not splitting this code into several files. Python's setuptools 
+didn't let me. If anyone does, let me know:
+    https://github.com/bvdelft/PyOpaque/issues/10
+
+MIT License - http://www.opensource.org/licenses/MIT
+2012 - Luciano Bello, Bart van Delft
+
+******************************************************************************/
+
+
 #include <Python.h>
 #include <set>
-// #include <typeinfo>
 using namespace std;
 
-/*----------------------------------------------------------------------------*/
-////// Assisting methods ///////////////////////////////////////////////////////
 
-// if set to true debug information is printed
-// can be controlled by functions within the module
+/*------------------------------------------------------------------------------
+
+        Assisting methods
+        
+            - void debug(const char* format, ...)
+            - PyObject * enableDebug(PyObject *dummy, PyObject *args)
+            - PyObject * disableDebug(PyObject *dummy, PyObject *args)
+            - bool argToCSet(PyObject*        list, 
+                      set<char*, strPtrLess>* cset, 
+                      const char *            name) 
+        
+------------------------------------------------------------------------------*/
+
+// If set to -true-, debugging information is printed
+// The value can be controlled from python by calling
+//     cOpaque.enableDebug()
+//     cOpaque.disableDebug()
 bool DEBUG = false;
 
-/**
-* Prints debug text
-**/
-static void debug(const char * text) {
-	if (DEBUG)
-		printf("%s",text);
+
+// Print text in debug-friendly format
+static void debug(const char* format, ...)
+{
+    if (DEBUG)
+    {
+        printf("[PyOpaque DEBUG] ");
+        va_list argptr;
+        va_start(argptr, format);
+        vprintf(format, argptr);
+        va_end(argptr);
+        printf("\n");
+    }
 }
+
 
 // Enable debugging
 static PyObject * enableDebug(PyObject *dummy, PyObject *args)
@@ -35,19 +75,20 @@ static PyObject * disableDebug(PyObject *dummy, PyObject *args)
 }
 
 
-/**
-* For performing searches in sets etc.
-**/
-struct strPtrLess {
-   bool operator( )(const char* p1,const char* p2) const {
-      return strcmp(p1,p2) < 0;
-   }
+// For performing searches in sets etc.
+struct strPtrLess 
+{
+    bool operator( )(const char* p1,const char* p2) const 
+    {
+        return strcmp(p1,p2) < 0;
+    }
 };
 
-/**
-* Convert a python object representing a list of strings to a set in C
-**/
-static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char * name) {
+// Convert a python object representing a list of strings to a set in C
+static bool argToCSet(PyObject*               list, 
+                      set<char*, strPtrLess>* cset, 
+                      const char *            name) 
+{
 
     int numLines = PyList_Size(list);
 	if (numLines < 0)
@@ -56,13 +97,12 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char *
 		return false;
 	}
 
-	int i;
-	for (i = 0; i < numLines; i++)
+	for (int i = 0; i < numLines; i++)
 	{
 		PyObject* item;
 
 		if (! (item = PyList_GetItem(list, i)))
-			return NULL;
+			return NULL; // Error in the provided argument
 			
 		if (!PyString_Check(item)) {
 			(void)PyErr_Format(PyExc_RuntimeError, 
@@ -72,17 +112,14 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char *
 			
 		char * attr = PyString_AsString(item);
 		
-		debug("DEBUG: Adding to ");
-		debug(name);
-		debug(": ");
-		debug(attr);
-		debug("\n");
+		debug("Adding to %s: %s", name, attr);
 			
 		if (cset->find(attr) != cset->end())
 		{
 			(void)PyErr_Format(PyExc_RuntimeError, 
 				"List entry %s appears more than once.",attr);
-			return false;
+			return false; // Does not have to be an error, but probably 
+			// indicates incorrect use of the library
 		}
 		
 		cset->insert(attr);
@@ -92,11 +129,20 @@ static bool argToCSet(PyObject* list, set<char*, strPtrLess>* cset, const char *
 	
 }
 
+// define structures
 #include "cOpaquemodule.h"
 
+/*------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-////// Encapsulating __builtin__.__import__ ////////////////////////////////////
+        Encapsulating the __import__ functionality
+        
+            - PyObject * encapImport(PyObject * me, PyObject *args)
+            - PyObject * doImport(PyObject * me, PyObject *args)
+        
+------------------------------------------------------------------------------*/
+
+
+
 
 // Pointer to the original import function
 PyObject * BUILTIN_IMPORT;
@@ -104,11 +150,10 @@ PyObject * BUILTIN_IMPORT;
 // List of module names that cannot be imported (e.g. sys, gc)
 set<char*, strPtrLess> ImportBlacklist;
 
+// When set to -true-, allow for import of modules in the blacklist
 bool UNSAFE_IMPORT = false;
 
-/**
-* Store the function and the blacklist
-**/
+// Store the import function and the blacklist
 PyObject * encapImport(PyObject * me, PyObject *args)
 {
     if (BUILTIN_IMPORT != NULL)
@@ -125,7 +170,7 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 		return NULL;
 	
 
-	debug("DEBUG: Adding blacklist\n");
+	debug("Adding blacklist\n");
 	
 	if (!argToCSet(blacklist, &ImportBlacklist, "blacklist"))
     	return NULL;
@@ -136,11 +181,8 @@ PyObject * encapImport(PyObject * me, PyObject *args)
 }
 
 
-
-
-/**
-* Wrapped import
-**/
+// Call the import function on the module provided as argument. Only executes
+// import if not blacklisted, or unsafe imports are allowed.
 PyObject * doImport(PyObject * me, PyObject *args)
 {
     char * name;
@@ -173,42 +215,52 @@ PyObject * doImport(PyObject * me, PyObject *args)
     
 }
 
+/*------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-////// EncapsulatedAttribute ///////////////////////////////////////////////////
+        Encapsulating callable attributes
+        
+            - void encapsulatedAttribute_dealloc(PyObject* self)
+            - PyObject * EAGetAttr(PyObject* self, char * attr) 
+            - PyObject * EACall(PyObject * self, 
+                                PyObject *args, 
+                                PyObject *other)
+            - PyTypeObject* makeEAType(char * name) 
+            - PyObject* encapAttribute_init(PyObject* att, char * name) 
+            
+------------------------------------------------------------------------------*/
 
-/**
-* Deallocator
-**/
+
+// Deallocation
 static void encapsulatedAttribute_dealloc(PyObject* self)
 {
-	PyObject_Del(((EncapsulatedAttribute*) self)->attPointer);
+    // PyObject_Del only to be called for objects allocated using
+    // PyObject_New or PyObject_Newvar.
+	Py_XDECREF(((EncapsulatedAttribute*) self)->attPointer);
 	PyObject_Del(self);
 }
 
-/**
-* Do not return any attributes on an attribute (e.g. __self__ for a bounded
-* class method defies everything)
-**/
+// Do not return any attributes on a callable attribute (especially __self__ 
+// would completely circumvent the protection)
 static PyObject * EAGetAttr(PyObject* self, char * attr) 
 {
 	(void) PyErr_Format(PyExc_RuntimeError, 
-                "This is an encapsulated callable attribute - can only be called.");
+        "This is an encapsulated callable attribute - can only be called.");
 	return NULL;
 }
 
-/**
-* Calling the attribute is fine
-**/
+// The only allowed operation is calling the attribute:
 static PyObject * EACall(PyObject * self, PyObject *args, PyObject *other)
 {
-    return PyObject_CallObject(((EncapsulatedAttribute*)self)->attPointer, args);
+    return PyObject_CallObject(((EncapsulatedAttribute*)self)->attPointer, 
+        args);
 }
 
-
-// TODO change tp_name
-PyTypeObject* makeEncapsulatedAttribute() 
+// Returns the type of the encapsulated attribute.
+PyTypeObject* makeEAType(char * name) 
 {
+
+    debug("Generating encapsulated attribute %s", name);
+    
 	PyTypeObject * encapsulatedAttribute = 
 		(PyTypeObject *)malloc(sizeof(PyTypeObject));
 
@@ -216,10 +268,9 @@ PyTypeObject* makeEncapsulatedAttribute()
 	PyTypeObject dummy = {PyObject_HEAD_INIT((PyTypeObject*)NULL)};
 	memcpy(encapsulatedAttribute, &dummy, sizeof(PyObject));
 
-	encapsulatedAttribute->tp_name = const_cast<char*>("EncapsulatedAttribute");
+	encapsulatedAttribute->tp_name = const_cast<char*>(name);
 	encapsulatedAttribute->tp_basicsize = sizeof(EncapsulatedAttribute);
 
-	// TODO Not really sure what line below does.
 	encapsulatedAttribute->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
 								Py_TPFLAGS_CHECKTYPES;
 	encapsulatedAttribute->tp_doc = NULL;
@@ -237,45 +288,42 @@ PyTypeObject* makeEncapsulatedAttribute()
 
 }
 
-/**
-* There can be only one (EncapsulatedAttributeType).
-**/
-static PyTypeObject* EncapsulatedAttributeType = makeEncapsulatedAttribute();
-
-/**
-* Creates a new EncapsulatedAttribute for the specified attribute
-**/                             
-static PyObject* encapAttribute_init(PyObject* att) 
+// Create a new EncapsulatedAttribute for the specified attribute
+static PyObject* encapAttribute_init(PyObject* att, char * name) 
 {
 
     if (att == NULL) 
         return att;	
+        
+    // Encapsulate iff it is callable and has attribute __self__ (i.e. 
+    // preventing that we encapsulate callable objects)
 	if (PyObject_HasAttrString(att,"__self__") && PyCallable_Check(att)) {
 		EncapsulatedAttribute* encapAttr;
 		encapAttr = PyObject_NEW(EncapsulatedAttribute, 
-		                              EncapsulatedAttributeType);
+		                              makeEAType(name));
 		encapAttr->attPointer = att;
 		Py_XINCREF(att);
 		return (PyObject*) encapAttr;
 	}
+	
 	return att;
 }
 
-/*----------------------------------------------------------------------------*/
-////// EncapsulatedObject //////////////////////////////////////////////////////
+/*------------------------------------------------------------------------------
 
-/**
-* __getattr__ for EncapsulatedObject. 
-**/
+        Encapsulating objects
+        
+            - 
+            
+------------------------------------------------------------------------------*/
+
+
+//  __getattr__ for EncapsulatedObject. 
 static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 {
     debug("Checking get attribute; ");
     debug(attr);
     debug("\n");
-    
-	// TODO, important: should never allow access to
-	// - __class__
-	// - __dict__
 
 	EncapsulatedObject * eobject = (EncapsulatedObject *) _eobject;
 
@@ -289,7 +337,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	if (publicAttributes.count(attr) > 0) 
 	{ 
 		PyObject * a =  PyObject_GetAttrString(eobject->objPointer,attr);
-		PyObject * res = encapAttribute_init(a);
+		PyObject * res = encapAttribute_init(a, attr);
 		Py_XINCREF(res);
 		return res;
 	}
@@ -318,7 +366,7 @@ static PyObject * EOGetAttr(PyObject * _eobject, char * attr)
 	if (eobject->target->defaultPublic) {
 	
 		PyObject * a =  PyObject_GetAttrString(eobject->objPointer,attr);
-		PyObject * res = encapAttribute_init(a);
+		PyObject * res = encapAttribute_init(a, attr);
 		Py_XINCREF(res);
 		return res;
 	

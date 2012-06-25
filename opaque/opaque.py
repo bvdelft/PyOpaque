@@ -1,5 +1,7 @@
 import cOpaque
 
+cOpaque.enableDebug()
+
 class opaque(object):
     def __init__(self, pubargs=[], privargs=[], default=True, allowExtension=True):
         self.privarg = [ j for j in privargs ]
