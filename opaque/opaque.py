@@ -1,7 +1,5 @@
 import cOpaque
 
-cOpaque.enableDebug()
-
 class opaque(object):
     def __init__(self, public=[], private=[], default=True, allowExtension=True):
         '''
