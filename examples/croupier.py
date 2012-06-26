@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-from opaque import opaque
+from opaque import opaque,disableDangerousImports
 from random import shuffle
+
+disableDangerousImports()
 
 @opaque(private=['deck'])
 class Croupier(object):
@@ -11,3 +13,4 @@ class Croupier(object):
 	def drawCard(self):
 		return self.deck.pop()
 
+jack=Croupier()
