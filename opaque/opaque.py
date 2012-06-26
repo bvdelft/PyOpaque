@@ -41,9 +41,12 @@ def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
     classToEncapsulate=opaque(toPublic,toPrivate,default,allowExtension)(classToEncapsulate)
     return classToEncapsulate
         
-def disableDangerousImports():
-	import __builtin__
+def disableDangerousImports(ListOfModules=[]):
+	try:
+		import __builtin__
+	except RuntimeError:
+		raise RuntimeError('It is not possible to run disableDangerousImports twice.')
 	del __builtin__.file
-	cOpaque.encapImport(__builtin__.__import__, ["gc", "sys", "__builtin__"])
+	cOpaque.encapImport(__builtin__.__import__, ["gc", "sys", "__builtin__"]+ListOfModules)
 	__builtin__.__import__ = cOpaque.doImport
 	del __builtin__
