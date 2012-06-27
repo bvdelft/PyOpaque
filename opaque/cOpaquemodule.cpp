@@ -418,6 +418,14 @@ TargetClass::TargetClass(PyObject * _target, char * _name,
             - PyObject * newEOB(PyTypeObject * type, 
                                 PyObject * args, 
                                 PyObject * kargs) 
+            - PyObject * EOGetAttrS(PyObject * obj, PyObject *args)
+            - PyObject * EORepr(PyObject * obj)
+            - PyObject * EOStr(PyObject * obj)
+            - EncapsulatedType* makeEncapsulatedType(char * name, bool calb)  
+            - PyObject * encapType_init(PyObject * module, 
+                                        char * name, 
+                                        bool calb, 
+                                        TargetClass* target) 
             
 ------------------------------------------------------------------------------*/
 
@@ -484,26 +492,27 @@ PyObject * EOGetAttrS(PyObject * obj, PyObject *args) {
     return EOGetAttr(obj,attr);
 }
 
+// The methods accessible on an opaque object
 static PyMethodDef EOMethods[] = 
 {
     {"__getattr__",EOGetAttrS,METH_VARARGS,NULL} ,
     {NULL, NULL, 0, NULL} 
 } ;
 
+// Print the object's representation
 static PyObject * EORepr(PyObject * obj)
 {
     return PyObject_Repr(((EncapsulatedObject*)obj)->objPointer);
 }
 
+// Return the object as a string 
 static PyObject * EOStr(PyObject * obj)
 {
     return PyObject_Str(((EncapsulatedObject*)obj)->objPointer);
 }
 
 
-/**
-* Constructs the EncapsulatedType. 
-**/
+// Constructing the type for an opaque class 
 EncapsulatedType* makeEncapsulatedType(char * name, bool calb) 
 {
     EncapsulatedType * encapsulatedType = 
@@ -514,9 +523,7 @@ EncapsulatedType* makeEncapsulatedType(char * name, bool calb)
     memcpy(encapsulatedType, &dummy, sizeof(PyObject));
 
     // Set the type-instance specific name
-    debug("Name: ");
-    debug(name);
-    debug("\n");
+    debug("Name: %s", name);
 
     encapsulatedType->tp_name = const_cast<char*>(name);
     encapsulatedType->tp_getattr = EOGetAttr;
@@ -531,7 +538,7 @@ EncapsulatedType* makeEncapsulatedType(char * name, bool calb)
     encapsulatedType->tp_str = EOStr;
     
     if(calb) {
-        debug(name); debug(" is callable!!\n");
+        debug("%s is callable, adding call-functionality", name);
         encapsulatedType->tp_call = EOCall;
     }
 
@@ -543,16 +550,15 @@ EncapsulatedType* makeEncapsulatedType(char * name, bool calb)
     if(PyType_Ready(encapsulatedType)<0)
         printf("> Error: PyType_Ready: %s", name);
     else
-        debug("PyType Ready\n");
+        debug("PyType Ready");
 
     return encapsulatedType;
 
 }
 
-/**
-* Creates a new EncapsulatedType for the specified target class.
-**/                             
-static PyObject * encapType_init(PyObject * module, char * name, bool calb, TargetClass* target) 
+// Creates a new Encapsulating (Opaque) Type for the specified target class.                             
+static PyObject * encapType_init(PyObject * module, char * name, bool calb, 
+                                 TargetClass* target) 
 {
     EncapsulatedType* myEncapsulatedType = makeEncapsulatedType(name, calb);
     myEncapsulatedType->target = target;
@@ -563,11 +569,20 @@ static PyObject * encapType_init(PyObject * module, char * name, bool calb, Targ
     return (PyObject*) myEncapsulatedType;
 }
 
-/*----------------------------------------------------------------------------*/
-////// cOpaque /////////////////////////////////////////////////////////////////
+/*------------------------------------------------------------------------------
 
-// Helper function, returns name
-static char * getObjectName(PyObject * obj) {
+        More helper functions 
+            
+            - char * getObjectName(PyObject * obj
+            - bool isCallable(PyObject * obj)
+            - PyObject * getObjectModule(PyObject * obj) 
+            
+------------------------------------------------------------------------------*/
+
+
+// Returns the name of an object, if available
+static char * getObjectName(PyObject * obj) 
+{
     
     if (! PyObject_HasAttrString(obj, "__name__"))
         return NULL;
@@ -579,43 +594,47 @@ static char * getObjectName(PyObject * obj) {
     return name;
 }
 
-static bool isCallable(PyObject * obj) {
+// Returns true if instances of this class are callable
+static bool isCallable(PyObject * obj) 
+{
     
-    return PyObject_HasAttrString(obj, "__call__"); // ||
-           //PyCallable_Check(obj);
-           
+    return PyObject_HasAttrString(obj, "__call__");
+    
 }
 
-// Helper function, returns pointer to module
-static PyObject * getObjectModule(PyObject * obj) {
+// Returns a pointer to the module to which the specified object belongs
+static PyObject * getObjectModule(PyObject * obj) 
+{
 
-    debug("Getting object module\n");
+    debug("Getting object module");
     
     if (! PyObject_HasAttrString(obj, "__module__"))
         return NULL;
     PyObject * moduleattr = PyObject_GetAttrString(obj, "__module__");
     UNSAFE_IMPORT = true;
-    PyObject * modules = PyObject_GetAttrString(PyImport_ImportModule("sys"), "modules");
+    PyObject * modules = 
+        PyObject_GetAttrString(PyImport_ImportModule("sys"), "modules");
     UNSAFE_IMPORT = false;
     PyObject * args = PyTuple_New(1);
     Py_XINCREF(moduleattr);
     PyTuple_SetItem(args, 0, moduleattr);
 
-    debug("Returning object module\n");
+    debug("Returning object module");
     
     return PyObject_Call(PyObject_GetAttrString(modules, "get"), args, NULL);
 }
 
-/**
-* List of classes that have been made opaque - a class can only be made opaque
-* once, otherwise we run into some problems. -- still required?
-**/
-static set<PyObject*> knownTargets;
+/*------------------------------------------------------------------------------
 
-/**
-* Creates a new type for the provided class, with list of public and private 
-* attributes.
-**/
+        Core call to cOpaque:
+            
+            - PyObject * makeOpaque(PyObject *dummy, PyObject *args)
+            
+------------------------------------------------------------------------------*/
+
+
+// Creates a new type for the provided class, with list of public and private 
+// attributes.
 static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
 {
     
@@ -629,11 +648,13 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
     if (! PyArg_ParseTuple( args, "OO!O!O", &target, &PyList_Type, &publicAttrs,
                                    &PyList_Type, &privateAttrs, &defaultPolicy)) 
         return NULL;
+        
+        
     
     ////
     // The target class
     ////
-    debug("DEBUG: Checking target class\n");
+    debug("Checking target class");
     
     if (!PyClass_Check(target) && !PyType_Check(target))
     {
@@ -650,23 +671,12 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
         return NULL;
     }
     
-    
-    if (knownTargets.find(target) != knownTargets.end())
-    {
-        (void)PyErr_Format(PyExc_RuntimeError, 
-            "Opaque instance for %s can only be created once.", name);
-        return NULL;
-    }
-        
-        
-    knownTargets.insert(target);
-    Py_XINCREF(target);
-    
+  
     
     ////
     // Public attributes
     ////
-    debug("DEBUG: Checking public attributes\n");
+    debug("Checking public attributes");
     
 
     set<char*, strPtrLess> publicAttributes;
@@ -677,52 +687,93 @@ static PyObject * makeOpaque(PyObject *dummy, PyObject *args)
     if (PyCallable_Check(target))
         publicAttributes.insert((char *)"__call__");
     
+    
+    
     ////
     // Private attributes
     ////
-    debug("DEBUG: Checking private attributes\n");
+    debug("Checking private attributes");
     
     set<char*, strPtrLess> privateAttributes;
     
     if (!argToCSet(privateAttrs, &privateAttributes,"private"))
         return NULL;
     
+    
+    
     ////
     // Default policy
     ////
-    bool defPol = PyObject_IsTrue(defaultPolicy) == 1;
-    
-    debug("DEBUG: Checking setting default policy to");
-    if (defPol)
-        debug(" true.\n");
-    else
-        debug(" false.\n");
+    bool defPol = PyObject_IsTrue(defaultPolicy) == 1;    
+    debug("Checking setting default policy to %s.", defPol ? "true" : "false");
     
     
-    debug("DEBUG: Creating target class\n");    
+    
+    ////
+    // Creating the opaque type for the provided class
+    ////
+    
+    debug("Creating TargetClass");        
     TargetClass * targetClass = new TargetClass(target, name, publicAttributes, 
-                       privateAttributes, defPol);
+                       privateAttributes, defPol);                       
+    debug("TargetClass created");              
                        
-    debug("DEBUG: Created\n");              
-                       
-    return encapType_init(getObjectModule(target), name, isCallable(target), targetClass);
+    return encapType_init(getObjectModule(target), name, isCallable(target), 
+                          targetClass);
 }
 
 
-
+// All accessible methods
 static PyMethodDef cOpaqueMethods[] = 
 {
-    {"makeOpaque",makeOpaque,METH_VARARGS,"Make a class opaque using the specified list of attribute/policy combinations. Returns a function that passes its arguments to the construction of an encapsulated object for the provided class. The attributes are accessible as according to the provided policies. Calls look as follows :\n class = cOpaque.makeOpaque(class, [(\"attr1\",pol1), (\"attr2\",pol2), ...])\n where each attribute can occur at most once and each pol1, pol2, ... refers to a function with arity 0 that returns True or False."} ,
-    {"enableDebug",enableDebug,METH_VARARGS,"Enable the debugger"} ,
-    {"disableDebug",disableDebug,METH_VARARGS,"Disable the debugger"} ,
-    {"encapImport",encapImport,METH_VARARGS,"Encapsulate __builtin__.__import__"},
-    {"doImport",doImport,METH_VARARGS,"Call the encapsulated __builtin__.__import__"},
+
+    {"makeOpaque",makeOpaque,METH_VARARGS, "\
+makeOpaque(class, whitelist, blacklist, default) -> type\n\
+class     : classobj\n\
+whitelist : list of strings\n\
+blacklist : list of strings\n\
+default   : boolean\n\
+\n\
+Removes 'class' from the namespaces and returns a built-in type 'type' with \
+the same name and behaviour. Instances of this type will behave like instances \
+of the provided class, except that attributes in 'blacklist' are not \
+accessible from code outside the class. If 'default' is set to False, only the \
+attributes in 'whitelist' are accessible from code outside the class.\n\
+\n\
+Do NOT use this method unless you are very sure of what you are doing. Use the \
+Python API provided in opaque.py instead."} ,
+
+    {"enableDebug",enableDebug,METH_VARARGS,"\
+enableDebug()\n\
+\n\
+Make cOpaque print debug messages"} ,
+
+    {"disableDebug",disableDebug,METH_VARARGS,"\
+disableDebug()\n\
+\n\
+Stop printing of debug messages"} ,
+
+    {"encapImport",encapImport,METH_VARARGS,"\
+encapImport(importFunction, blacklist)\n\
+importFunction == __builtin__.__import__\n\
+blacklist : list of strings\n\
+\n\
+Stores a reference to the builtin import function and a list of module names \
+that should not be allowed to be imported. Probably this call is directly \
+followed by a call to doImport(), which is a separate function because of... \
+well, let us say C-technical reasons."},
+
+    {"doImport",doImport,METH_VARARGS,"\
+Function that calls the previous encapsulated __builtin__.__import__ such that \
+blacklisted modules cannot be imported. Probably the only way in which it will \
+be used is:\n\
+__builtin__.__import__ = cOpaque.doImport"},
+
     {NULL, NULL, 0, NULL} 
+    
 } ;
 
-/**
-* Initialization.
-**/
+// Initialization.
 PyMODINIT_FUNC initcOpaque(void)
 {
    (void) Py_InitModule("cOpaque",cOpaqueMethods);
