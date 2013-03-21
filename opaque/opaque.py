@@ -40,7 +40,7 @@ def applyPolicy(classToEncapsulate,cfgFileName='opaque.cfg'):
         if property == 'public' :  toPublic.append(attribute)
     classToEncapsulate=opaque(toPublic,toPrivate,default,allowExtension)(classToEncapsulate)
     return classToEncapsulate
-        
+       
 def disableDangerousImports(ListOfModules=[]):
 	try:
 		import __builtin__
@@ -50,3 +50,12 @@ def disableDangerousImports(ListOfModules=[]):
 	cOpaque.encapImport(__builtin__.__import__, ["gc", "sys", "__builtin__"]+ListOfModules)
 	__builtin__.__import__ = cOpaque.doImport
 	del __builtin__
+
+def disableDangerousCalls(ListOfModules=[]):
+	blacklist={
+		'gc':['get_objects'],
+		'sys':['modules']
+	}
+	import __builtin__
+	for (module,attributes) in blacklist.iteritems():
+		for attr in attributes: __builtin__.delattr(__import__(module),attr)
