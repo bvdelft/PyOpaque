@@ -132,6 +132,103 @@ static bool argToCSet(PyObject*               list,
 // define structures
 #include "cOpaquemodule.h"
 
+/*----------------------------------------------------------------------------*/
+////// Encapsulating __builtin__.open //////////////////////////////////////////
+
+// Pointer to the original open function
+//   Important that this pointer is only stored in c, not in python,
+//   otherwise code can access the copy stored in python and escape the blacklist.
+PyObject * BUILTIN_OPEN;
+
+// Black or white-lists for the open method
+set<char*, strPtrLess> OpenListFiles;
+set<char*, strPtrLess> OpenListDirs;
+// Set to true iff whitelist instead of blacklist
+bool OPEN_IS_BLACKLIST = false;
+
+/**
+* Store the function and the black/whitelist
+* Arguments (from python):
+*   encapOpen(__builtin__.open, isBlacklist, filelist, dirlist)
+**/
+PyObject * encapOpen(PyObject * me, PyObject *args)
+{
+        if (BUILTIN_OPEN != NULL)
+        {
+                (void) PyErr_Format(PyExc_RuntimeError, 
+                        "cPyOpaque already encapsulated __builtin__.open");
+                return NULL;
+        }
+
+        PyObject * filelist;
+        PyObject * dirlist;
+        PyObject * isBlacklist;
+
+        if (! PyArg_ParseTuple( args, "OOO!O!", &BUILTIN_OPEN, &isBlacklist, 
+                &PyList_Type, &filelist, &PyList_Type, &dirlist))
+                return NULL;
+
+        OPEN_IS_BLACKLIST = PyObject_IsTrue(isBlacklist);
+
+        if (OPEN_IS_BLACKLIST)
+                debug("DEBUG: Adding __builtin__.open blacklist");
+        else
+                debug("DEBUG: Adding __builtin__.open whitelist");
+        
+        if (!argToCSet(filelist, &OpenListFiles, "filelist"))
+                return NULL;
+        if (!argToCSet(dirlist,  &OpenListDirs,  "dirlist" ))
+                return NULL;
+
+        
+        Py_INCREF(Py_None);
+        return Py_None;
+                
+}
+
+/**
+* Wrapped open
+**/
+PyObject * doOpen(PyObject * me, PyObject *args)
+{
+        char * name;
+        char * mode;
+        int buffering;
+    
+        if (! PyArg_ParseTuple(args, "s|si", &name, &mode, &buffering))     
+                return NULL;
+    
+        if (BUILTIN_OPEN == NULL)
+        {
+                (void) PyErr_Format(PyExc_RuntimeError, 
+                        "__builtin__.open not yet encapsulated");
+                        return NULL;
+        }
+    
+        if (OPEN_IS_BLACKLIST) // Blacklisting
+        {
+                if (OpenListFiles.count(name) > 0) 
+                {
+                        (void) PyErr_Format(PyExc_RuntimeError, 
+                        "Illegal open (%s)",name);
+                        return NULL;
+                }
+        } else // Whitelisting
+        {
+                if (OpenListFiles.count(name) <= 0)
+                {
+                        (void) PyErr_Format(PyExc_RuntimeError, 
+                        "Illegal open (%s)",name);
+                        return NULL;
+ 
+                }
+        }
+    
+    return PyObject_CallObject(BUILTIN_OPEN, args);
+    
+}
+
+
 /*------------------------------------------------------------------------------
 
         Encapsulating the __import__ functionality
@@ -768,6 +865,13 @@ Function that calls the previous encapsulated __builtin__.__import__ such that \
 blacklisted modules cannot be imported. Probably the only way in which it will \
 be used is:\n\
 __builtin__.__import__ = cOpaque.doImport"},
+
+    {"encapOpen",encapOpen,METH_VARARGS,
+"Encapsulate __builtin__.open, args: (__builtin__.open, isBlackList, filelist, \
+dirlist)"},
+
+    {"doOpen",doOpen,METH_VARARGS,
+"Call the encapsulated __builtin__.open"},
 
     {NULL, NULL, 0, NULL} 
     
